@@ -1,6 +1,6 @@
 # React to Surprises with the Youla-REN
 
-This repository contains all the code for our upcoming journal paper *React to Suprises: Stable-by-Design Neural Feedback Control of Nonlinear Systems*. 
+This repository contains all the code for our upcoming journal paper *React to Surprises: The Youla-REN Class of Stable-by-Design Neural Feedback Controllers*. 
 
 ![animation-ezgif com-crop](https://github.com/user-attachments/assets/534c2fbf-19ba-420e-b531-6c5d69a28286)
 
