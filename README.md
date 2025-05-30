@@ -53,12 +53,12 @@ include("src/counter_example_dy.jl")
 
 To plot the results in the paper from existing data, each sub-folder in `src/` has one or more plotting scripts:
 
-- `src/nonlinear-system/plot_paperfig.jl`: produces Figure 6 in the paper.
-- `src/stability-guarantees/plot_paperfig.jl`: produces Figure 7 in the paper.
-- `src/model-uncertainty/plot_youla_residual_results.jl`: produces Figures 9-11 in the paper.
+- `src/nonlinear-system/plot_paperfig.jl`: produces Figure 7 in the paper.
+- `src/stability-guarantees/plot_paperfig.jl`: produces Figure 8 in the paper.
+- `src/model-uncertainty/plot_youla_residual_results.jl`: produces Figures 10-11 in the paper.
 - `src/model-uncertainty/plot_ablation_results.jl`: produces Figure 12 in the paper.
 
-Note that Figure 8 was plotted in MATLAB with the script `matlab/lcp_lqg_paperplots.m`.
+Note that Figure 9 was plotted in MATLAB with the script `matlab/lcp_lqg_paperplots.m`.
 
 ### Re-training from Scratch
 
@@ -68,7 +68,7 @@ julia -t 1 -p 10
 ```
 This will create a Julia session with 10 parallel workers, each with a single thread. If your CPU can handle more than 10 threads, feel free to increas to `-t 2` or `-t 3` for faster training. All results will be saved in a `results/<experiment_name>/batch/` directory, which will be created automatically if it does not exist.
 
-To reproduce the results in Figure 11 for the uncertain linear cartpole example, be sure to run `src/model-uncertainty/choose_best_models.jl` and `src/model-uncertainty/eval_adaptation.jl` (in that order) before plotting anything.
+To reproduce the results in Figure 10 (c) for the uncertain linear cartpole example, be sure to run `src/model-uncertainty/choose_best_models.jl` and `src/model-uncertainty/eval_adaptation.jl` (in that order) before plotting anything.
 
 ### A Note on Terminology
 
