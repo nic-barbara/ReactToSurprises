@@ -1,6 +1,6 @@
 # React to Surprises with the Youla-REN
 
-This repository contains all the code for the paper *React to Surprises: Stable-by-Design Neural Feedback Control and the Youla-REN* (Barbara, Wang, Megretski, & Manchester, 2025). 
+This repository contains all the code for the paper [*React to Surprises: Stable-by-Design Neural Feedback Control and the Youla-REN*](https://arxiv.org/abs/2506.01226) (Barbara, Wang, Megretski, & Manchester, 2025). 
 
 ![animation-ezgif com-crop](https://github.com/user-attachments/assets/534c2fbf-19ba-420e-b531-6c5d69a28286)
 
