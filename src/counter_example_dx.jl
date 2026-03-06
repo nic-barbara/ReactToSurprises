@@ -1,4 +1,5 @@
 using CairoMakie
+# using Latexify
 using Random
 
 rng = Xoshiro(24)
@@ -38,10 +39,16 @@ function simulate(dx::Function)
 end
 
 # Plotting
-function make_plot(xs, x̂s, ax, color, label; lstyles=[:solid, :dash])
+function make_plot(xs, x̂s, ax, color, label; lstyles=[:solid, :dash], plot_observer=false)
     linewidth = 1.5
-    lines!(ax, xs[1, :]; color, linewidth, linestyle=lstyles[1], label=label)
-    lines!(ax, xs[2, :]; color, linewidth, linestyle=lstyles[2])
+    lab1 = L"%$(label) (IC 1)"
+    lab2 = L"%$(label) (IC 2)"
+    lines!(ax, xs[1, :]; color, linewidth, linestyle=lstyles[1], label=lab1)
+    lines!(ax, xs[2, :]; color, linewidth, linestyle=lstyles[2], label=lab2)
+    if plot_observer
+        lines!(ax, x̂s[1, :]; color, linewidth, alpha=0.5, linestyle=lstyles[1])
+        lines!(ax, x̂s[2, :]; color, linewidth, alpha=0.5, linestyle=lstyles[2])
+    end
 end
 
 # Run the example
@@ -51,12 +58,23 @@ x2, x̂2 = simulate(dx2)
 colours = Makie.wong_colors()
 
 with_theme(theme_latexfonts()) do
-    fig = Figure(size = (400, 200))
+    fig = Figure(size = (450, 240))
     ax = Axis(fig[1,1], xlabel="Time samples", ylabel="States")
     make_plot(x2, x̂2, ax, colours[3], L"w = 2")
     make_plot(x1, x̂1, ax, colours[2], L"w = 0")
-    axislegend(position=:rb)
-    ylims!(ax, (-14,10))
+    axislegend(position=:rb, orientation=:horizontal, nbanks=2, labelsize=12)
+    ylims!(ax, (-20,8))
     xlims!(ax, (1,25))
     save(joinpath(@__DIR__, "../results/disturbance_example_dx.pdf"), fig)
+end
+
+with_theme(theme_latexfonts()) do
+    fig = Figure(size = (400, 280))
+    ax = Axis(fig[1,1], xlabel="Time samples", ylabel="States")
+    make_plot(x2, x̂2, ax, colours[3], L"w = 2"; plot_observer=true)
+    make_plot(x1, x̂1, ax, colours[2], L"w = 0"; plot_observer=true)
+    axislegend(position=:rb, orientation=:horizontal, nbanks=2, labelsize=12)
+    ylims!(ax, (-18,8))
+    xlims!(ax, (1,25))
+    save(joinpath(@__DIR__, "../results/disturbance_example_dx_extended.pdf"), fig)
 end
