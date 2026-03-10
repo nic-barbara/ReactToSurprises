@@ -16,7 +16,7 @@ include(joinpath(@__DIR__, "setup_mass.jl"))
 #######################################################################
 
 # Load the costs
-fpath = joinpath(@__DIR__, "../../results/model-uncertainty/batch-inputfilter/")
+fpath = joinpath(@__DIR__, "../../results/model-uncertainty/batch/")
 fnames = get_bson_files(fpath)
     
 load_data(fname, key) = BSON.load(fname)[key]

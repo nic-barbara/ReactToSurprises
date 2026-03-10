@@ -22,7 +22,7 @@ end
     batch_ids = [0,1,2,5,6,7]
 
     # Make a results folder
-    savedir = string(@__DIR__, "/../../results/model-uncertainty/batch-inputfilter/")
+    savedir = string(@__DIR__, "/../../results/model-uncertainty/batch/")
     if !isdir(savedir)
         mkdir(savedir)
     end

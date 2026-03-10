@@ -4,6 +4,9 @@ using MatrixEquations
 using Random
 using RobustNeuralNetworks
 
+"""Compute number of trainable params"""
+get_network_size(model) = sum(length, Flux.params(model))
+
 
 """
 Store gains for a static output-feedback controller and
@@ -387,5 +390,42 @@ the LSTMNetwork output to 0
 function RobustNeuralNetworks.set_output_zero!(m::LSTMNetwork)
     m.C  .*= 0
     m.by .*= 0
+    return nothing
+end
+
+"""
+Compatible interface for an MLP.
+"""
+mutable struct MLPNetwork
+    nu::Int
+    nv::Int
+    ny::Int
+    nx::Int
+    network
+end
+
+function MLPNetwork(nu::Int, nv::Int, ny::Int; rng=Random.GLOBAL_RNG, T=Float32)
+    init(n, m) = glorot_normal(n, m; T, rng)
+    initb(n) = zeros(T, n)
+
+    network = Chain(
+        Dense(nu, nv, Flux.relu; init, bias=initb(nv)),
+        Dense(nv, nv, Flux.relu; init, bias=initb(nv)),
+        Dense(nv, nv, Flux.relu; init, bias=initb(nv)),
+        Dense(nv, nv, Flux.relu; init, bias=initb(nv)),
+        Dense(nv, ny; init, bias=initb(ny)),
+    )
+    return MLPNetwork(nu, nv, ny, 0, network)
+end
+
+function (m::MLPNetwork)(ξ0, u)
+    return ξ0, m.network(u)
+end
+
+Flux.@functor MLPNetwork
+
+function RobustNeuralNetworks.set_output_zero!(m::MLPNetwork)
+    m.network[end].weight .*= 0
+    m.network[end].bias   .*= 0
     return nothing
 end
