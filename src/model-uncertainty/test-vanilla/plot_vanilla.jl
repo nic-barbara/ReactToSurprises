@@ -147,7 +147,7 @@ function plot_loss!(ax, xc, μ, cmax, cmin; linewidth=2, kwargs...)
 end
 
 function lr_label_str(lr)
-    e = Int(round(log10(lr)))
+    e = Int(floor(log10(lr)))
     c = lr / 10.0^e
     if c ≈ 1.0
         return L"10^{%$e}"
