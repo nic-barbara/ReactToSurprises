@@ -179,7 +179,7 @@ with_theme(theme_latexfonts()) do
             n_max = max(n_v, n_yr)
             xc_ref = vcat(1, 5:5:((n_max - 1) * 5))
 
-            fig = Figure(size=(500, 450), fontsize=19)
+            fig = Figure(size=(450, 400), fontsize=19)
             ga = fig[1,1] = GridLayout()
             gb = fig[2,1] = GridLayout()
             rowgap!(fig.layout, 5)
