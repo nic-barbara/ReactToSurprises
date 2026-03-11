@@ -9,7 +9,7 @@ include(joinpath(@__DIR__, "models.jl"))
 include(joinpath(@__DIR__, "functions.jl"))
 
 # Make a results folder
-savedir = string(@__DIR__, "/../../results/model-uncertainty/batch/")
+savedir = string(@__DIR__, "/../../results/model-uncertainty/batch-vanilla/")
 if !isdir(savedir)
     mkdir(savedir)
 end
@@ -30,60 +30,33 @@ include(joinpath(@__DIR__, "setup_mass.jl"))
 #
 ###########################################################
 
-function run_experiment_and_plot(batch_id::Int; mlr=1e-2, verbose=true)
+function run_experiment_and_plot(batch_id::Int; lr=1e-2, verbose=true)
 
     # Set random seeds
     rng = Xoshiro(batch_id)
 
     # Choose network sizes
     nu, nx, nv, ny = G.ny, 84, 128, G.nu
-    lx, lv = 138, 0 # For linear REN
     nv_lstm = 154
-    nv_mlp = 177 # For 4 layer: 217
+    nv_mlp = 177
 
     # Save paths
-    save_name = "lcp_$(label)_$(nx)nx_$(nv)nv_lr$(mlr)_v$(batch_id)"
+    save_name = "lcp_vanilla_$(label)_$(nv_lstm)nvl_$(nv_mlp)nvm_lr$(lr)_v$(batch_id)"
     modelpath = string(savedir, save_name, ".bson")
     println("Starting experiment ", save_name)
 
     # Construct the models
     init = :cholesky
     nonlinearity = relu
-    γ_yren_filt = 0.95 / γ_dy_filt      # 0.95 to give a bit of wiggle room
-    γ_fren_filt = 0.95 / γ_y_filt
-    γ_yren_nofilt = 0.95 / γ_dy_nofilt
+    γ_yren_filt = 0.95 / γ_dy_filt
 
     youla_ren = LipschitzRENParams{Float32}(nu, nx, nv, ny, γ_yren_filt; rng, nl=nonlinearity, init)
-    youla_lren = LipschitzRENParams{Float32}(nu, lx, lv, ny, γ_yren_filt; rng, nl=nonlinearity, init)
-    youla_ren_nf = LipschitzRENParams{Float32}(nu, nx, nv, ny, γ_yren_nofilt; rng, nl=nonlinearity, init)
-    fdbak_ren = LipschitzRENParams{Float32}(nu, nx, nv, ny, γ_fren_filt; rng, nl=nonlinearity, init)
-    fdbak_lstm = LSTMNetwork(nu, nv_lstm, ny; rng, T=Float32)
-
     vanilla_lstm = LSTMNetwork(nu, nv_lstm, ny; rng, T=Float32)
     vanilla_mlp = MLPNetwork(nu, nv_mlp, ny; rng, T=Float32)
 
-    # To check out the size of a model:
-    if verbose
-        println("youla_ren:      ", get_network_size(youla_ren))
-        println("youla_lren:     ", get_network_size(youla_lren))
-        println("youla_ren_nf:   ", get_network_size(youla_ren_nf), "\n")
-
-        println("fdbak_ren:      ", get_network_size(fdbak_ren))
-        println("fdbak_lstm:     ", get_network_size(fdbak_lstm), "\n")
-
-        println("vanilla_lstm:   ", get_network_size(vanilla_lstm))
-        println("vanilla_mlp:    ", get_network_size(vanilla_mlp), "\n")
-    end
-
-    # Set output to zero on init
-    set_output_zero!(youla_ren)
-    set_output_zero!(youla_lren)
-    set_output_zero!(youla_ren_nf)
-    set_output_zero!(fdbak_ren)
-    set_output_zero!(fdbak_lstm)
-
-    set_output_zero!(vanilla_lstm)
-    set_output_zero!(vanilla_mlp)
+    # Don't set output to zero on init for vanilla policies
+    # set_output_zero!(vanilla_lstm)
+    # set_output_zero!(vanilla_mlp)
 
     # Hyperparams and testing params
     max_steps = 800
@@ -96,49 +69,17 @@ function run_experiment_and_plot(batch_id::Int; mlr=1e-2, verbose=true)
     test_seed = 1
 
     # Train models
-    # costs_yr = train_model!(
-    #     youla_ren, G, K_base, cost; rng, lr=1e-3, nepochs=1600, train_batches,
-    #     max_steps, train_horizon, test_horizon, test_batches, youla=true, domain_rand,
-    #     verbose, test_seed
-    # )
-    # costs_lr = train_model!(
-    #     youla_lren, G, K_base, cost; rng, lr=1e-3, nepochs=1600, train_batches,
-    #     max_steps, train_horizon, test_horizon, test_batches, youla=true, domain_rand,
-    #     verbose, test_seed
-    # )
-    # costs_yr_nf = train_model!(
-    #     youla_ren_nf, G, K_base_nofilter, cost; rng, lr=1e-3, nepochs=1600, train_batches,
-    #     max_steps, train_horizon, test_horizon, test_batches, youla=true, domain_rand,
-    #     verbose, test_seed, lr_decay=[3/4, 7/8]
-    # )
-    # costs_fr = train_model!(
-    #     fdbak_ren, G, K_base, cost; rng, lr=1e-3, nepochs=1600, train_batches,
-    #     max_steps, train_horizon, test_horizon, test_batches, youla=false, domain_rand,
-    #     verbose, test_seed
-    # )
-    # costs_fl = train_model!(
-    #     fdbak_lstm, G, K_base_nofilter, cost; rng, lr=1e-2, nepochs=1600, train_batches,
-    #     max_steps, train_horizon, test_horizon, test_batches, youla=false, domain_rand,
-    #     verbose, test_seed, lr_decay=[3/4, 7/8]
-    # )
-
+    nepochs = 4*1600
     costs_vl = train_model!(
-        vanilla_lstm, G, 0*K_base_nofilter, cost; rng, lr=mlr, nepochs=1600, train_batches,
+        vanilla_lstm, G, K_vanilla, cost; rng, lr, nepochs, train_batches,
         max_steps, train_horizon, test_horizon, test_batches, youla=false, domain_rand,
         verbose, test_seed, lr_decay=[3/4, 7/8]
     )
     costs_vm = train_model!(
-        vanilla_mlp, G, 0*K_base_nofilter, cost; rng, lr=mlr, nepochs=1600, train_batches,
+        vanilla_mlp, G, K_vanilla, cost; rng, lr, nepochs, train_batches,
         max_steps, train_horizon, test_horizon, test_batches, youla=false, domain_rand,
         verbose, test_seed, lr_decay=[3/4, 7/8]
     )
-
-    # Just for testing at the moment
-    costs_yr = costs_vl
-    costs_lr = costs_vl
-    costs_yr_nf = costs_vl
-    costs_fr = costs_vl
-    costs_fl = costs_vl
 
     # To test the base controller (zero-output REN)
     base_ren = REN(deepcopy(youla_ren))
@@ -158,21 +99,12 @@ function run_experiment_and_plot(batch_id::Int; mlr=1e-2, verbose=true)
 
     # Save the model params, costs, etc.
     bson(modelpath, Dict(
-        "youla_ren" => youla_ren,
-        "youla_lren" => youla_lren,
-        "youla_ren_nf" => youla_ren_nf,
-        "fdbak_ren" => fdbak_ren,
-        "fdbak_lstm" => fdbak_lstm,
-        "costs_yr" => costs_yr,
-        "costs_lr" => costs_lr,
-        "costs_yr_nf" => costs_yr_nf,
-        "costs_fr" => costs_fr,
-        "costs_fl" => costs_fl,
         "J_base" => J_base,
         "J_opt" => J_opt,
-
+        
         "vanilla_lstm" => vanilla_lstm,
         "vanilla_mlp" => vanilla_mlp,
+
         "costs_vl" => costs_vl,
         "costs_vm" => costs_vm
     ))
@@ -186,46 +118,36 @@ function run_experiment_and_plot(batch_id::Int; mlr=1e-2, verbose=true)
 
     # Use the Wong (2011) colour pallette
     colours = Makie.wong_colors()
-    colour_yr = colours[2]
-    colour_lr = colours[6]
-    colour_yr_nf = colours[3]
-    colour_fr = :grey
-    colour_fl = colours[5]
+    colour_vl = colours[6]
+    colour_vm = colours[3]
     colour_b = colours[4]
     colour_o = colours[1]
-    n = length(costs_yr)
+    n = length(costs_vm)
 
     # We only log costs every 5 steps (except first point)
-    xc = vcat(1, 5:5:((length(costs_yr) - 1) * 5))
+    xc = vcat(1, 5:5:((length(costs_vm) - 1) * 5))
 
     # Plot learning curves, with optimal test cost as a reference
     fig = Figure(size=(700,450), fontsize=18)
     ga = fig[1,1] = GridLayout()
-    ax = Axis(ga[1,1], xlabel="Epochs", ylabel="Test cost")
+    ax = Axis(ga[1,1], xlabel="Epochs", ylabel="Test cost", yscale=Makie.log10)
 
-    lines!(ax, xc, costs_yr, label="Youla-REN", linewidth=2, color=colour_yr)
-    # lines!(ax, xc, costs_lr, label="Youla-REN (linear)", linewidth=2, color=colour_lr)
-    # lines!(ax, xc, costs_yr_nf, label="Youla-REN (no filter)", linewidth=2, color=colour_yr_nf)
-    # lines!(ax, xc, costs_fr, label="Residual-REN (stable)", linewidth=2, color=colour_fr)
-    # lines!(ax, xc, costs_fl, label="Residual-LSTM", linewidth=2, color=colour_fl)
-
-    lines!(ax, xc, costs_vl, label="LSTM", linewidth=2, color=colour_yr_nf)
-    lines!(ax, xc, costs_vm, label="MLP", linewidth=2, color=colour_lr)
-
+    lines!(ax, xc, costs_vl, label="LSTM", linewidth=2, color=colour_vl)
+    lines!(ax, xc, costs_vm, label="MLP", linewidth=2, color=colour_vm)
 
     lines!(ax, xc, J_base*ones(n), linestyle=:dash, color=colour_b, label="Base", linewidth=2)
     lines!(ax, xc, J_opt*ones(n) , linestyle=:dash, color=colour_o, label="Optimal (known mass)", linewidth=2)
 
     xlims!(ax, 1, xc[end])
-    ylims!(ax, 0, 1.15*J_base)
+    # ylims!(ax, J_opt, 1.15*J_base)
     Legend(ga[1,2], ax, orientation=:vertical)
     save(string(savedir, save_name, "_losscurve.pdf"), fig)
 
     println("Done.")
 end
 
-
 # batch_ids = [0,1,2,5,6,7]
-for lr in [1e-5, 1e-4, 1e-3, 1e-2]
-    run_experiment_and_plot(1; mlr=lr)
+learning_rates = [1e-5, 1e-4, 1e-3, 5e-3, 1e-2]
+for lr in learning_rates
+    run_experiment_and_plot(batch_ids[1]; lr)
 end
