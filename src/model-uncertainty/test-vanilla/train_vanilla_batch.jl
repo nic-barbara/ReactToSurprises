@@ -19,8 +19,9 @@ end
     include(joinpath(@__DIR__, "../functions.jl"))
 
     function hyperparams()
-        batch_ids = [0, 1, 2, ]# 5, 6, 7]
-        learning_rates = [1e-5, 1e-4, 1e-3, 5e-3, 1e-2]
+        # batch_ids = [0, 1, 2, 5, 6, 7]
+        batch_ids = [5, 6, 7]
+        learning_rates = [1e-4, 1e-3, 5e-3, 1e-2]
 
         return batch_ids, learning_rates
     end
