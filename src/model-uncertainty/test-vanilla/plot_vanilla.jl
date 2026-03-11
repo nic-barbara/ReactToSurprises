@@ -4,9 +4,9 @@ using Random
 using RobustNeuralNetworks
 using Statistics
 
-include(joinpath(@__DIR__, "models.jl"))
-include(joinpath(@__DIR__, "functions.jl"))
-include(joinpath(@__DIR__, "setup_mass.jl"))
+include(joinpath(@__DIR__, "../models.jl"))
+include(joinpath(@__DIR__, "../functions.jl"))
+include(joinpath(@__DIR__, "../setup_mass.jl"))
 
 
 #######################################################################
@@ -26,7 +26,7 @@ nlr = length(learning_rates)
 #
 #######################################################################
 
-fpath_vanilla = joinpath(@__DIR__, "../../results/model-uncertainty/batch-vanilla/")
+fpath_vanilla = joinpath(@__DIR__, "../../../results/model-uncertainty/batch-vanilla/")
 fnames_vanilla = get_bson_files(fpath_vanilla)
 
 load_data(fname, key) = BSON.load(fname)[key]
@@ -73,7 +73,7 @@ end
 #
 #######################################################################
 
-fpath_youla = joinpath(@__DIR__, "../../results/model-uncertainty/batch/")
+fpath_youla = joinpath(@__DIR__, "../../../results/model-uncertainty/batch/")
 fnames_youla = get_bson_files(fpath_youla)
 
 costs_yr = load_data.(fnames_youla, "costs_yr")
@@ -145,14 +145,14 @@ with_theme(theme_latexfonts()) do
 
     # Add Youla-REN and reference lines to both panels
     for ax in [ax1, ax2]
-        # plot_loss!(ax, xc_yr, μ_yr, max_yr, min_yr;
-        #            color=colour_yr, label="Youla-γREN")
+        plot_loss!(ax, xc_yr, μ_yr, max_yr, min_yr;
+                   color=colour_yr, label="Youla-γREN")
         lines!(ax, xc_ref, J_base * ones(n_max), linestyle=:dash, color=colour_b,
                label="Base", linewidth=2)
-        # lines!(ax, xc_ref, J_opt * ones(n_max), linestyle=:dash, color=colour_o,
-        #        label=L"LQG (known $m_p$)", linewidth=2)
+        lines!(ax, xc_ref, J_opt * ones(n_max), linestyle=:dash, color=colour_o,
+               label=L"LQG (known $m_p$)", linewidth=2)
 
-        xlims!(ax, 1, 10) #max(xc_v[end], xc_yr[end]))
+        xlims!(ax, 1, max(xc_v[end], xc_yr[end]))
         # ylims!(ax, -2, 1.2 * J_base)
     end
 

@@ -5,11 +5,11 @@ using Random
 using RobustNeuralNetworks
 using Statistics
 
-include(joinpath(@__DIR__, "models.jl"))
-include(joinpath(@__DIR__, "functions.jl"))
+include(joinpath(@__DIR__, "../models.jl"))
+include(joinpath(@__DIR__, "../functions.jl"))
 
 # Make a results folder
-savedir = string(@__DIR__, "/../../results/model-uncertainty/batch-vanilla/")
+savedir = string(@__DIR__, "/../../../results/model-uncertainty/batch-vanilla/")
 if !isdir(savedir)
     mkdir(savedir)
 end
@@ -21,7 +21,7 @@ end
 #
 ###########################################################
 
-include(joinpath(@__DIR__, "setup_mass.jl"))
+include(joinpath(@__DIR__, "../setup_mass.jl"))
 
 
 ###########################################################

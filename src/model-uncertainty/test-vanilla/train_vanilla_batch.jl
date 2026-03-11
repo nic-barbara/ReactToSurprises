@@ -3,7 +3,7 @@ using Distributed
 
 @everywhere begin
     using Pkg
-    Pkg.activate(joinpath(@__DIR__, "../.."))
+    Pkg.activate(joinpath(@__DIR__, "../../.."))
 end
 
 @everywhere begin
@@ -15,8 +15,8 @@ end
     using RobustNeuralNetworks
     using Statistics
 
-    include(joinpath(@__DIR__, "models.jl"))
-    include(joinpath(@__DIR__, "functions.jl"))
+    include(joinpath(@__DIR__, "../models.jl"))
+    include(joinpath(@__DIR__, "../functions.jl"))
 
     function hyperparams()
         batch_ids = [0, 1, 2, ]# 5, 6, 7]
@@ -37,7 +37,7 @@ end
     end
 
     # Make a results folder
-    savedir = string(@__DIR__, "/../../results/model-uncertainty/batch-vanilla/")
+    savedir = string(@__DIR__, "/../../../results/model-uncertainty/batch-vanilla/")
     if !isdir(savedir)
         mkdir(savedir)
     end
@@ -49,7 +49,7 @@ end
     #
     ###########################################################
 
-    include(joinpath(@__DIR__, "setup_mass.jl"))
+    include(joinpath(@__DIR__, "../setup_mass.jl"))
 
 
     ###########################################################
@@ -99,7 +99,7 @@ end
         test_seed = 1
 
         # Train models
-        nepochs = 8 # TODO: Do longer than 4*1600?
+        nepochs = 4*1600
         costs_vm = train_model!(
             vanilla_mlp, G, K_vanilla, cost; rng, lr, nepochs, train_batches,
             max_steps, train_horizon, test_horizon, test_batches, youla=false, domain_rand,
