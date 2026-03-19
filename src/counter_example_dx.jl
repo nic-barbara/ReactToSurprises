@@ -39,16 +39,12 @@ function simulate(dx::Function)
 end
 
 # Plotting
-function make_plot(xs, x̂s, ax, color, label; lstyles=[:solid, :dash], plot_observer=false)
+function make_plot(ax, xs, color, label; lstyles=[:solid, :dash])
     linewidth = 1.5
     lab1 = L"%$(label) (IC 1)"
     lab2 = L"%$(label) (IC 2)"
     lines!(ax, xs[1, :]; color, linewidth, linestyle=lstyles[1], label=lab1)
     lines!(ax, xs[2, :]; color, linewidth, linestyle=lstyles[2], label=lab2)
-    if plot_observer
-        lines!(ax, x̂s[1, :]; color, linewidth, alpha=0.5, linestyle=lstyles[1])
-        lines!(ax, x̂s[2, :]; color, linewidth, alpha=0.5, linestyle=lstyles[2])
-    end
 end
 
 # Run the example
@@ -60,8 +56,8 @@ colours = Makie.wong_colors()
 with_theme(theme_latexfonts()) do
     fig = Figure(size = (450, 240))
     ax = Axis(fig[1,1], xlabel="Time samples", ylabel="States")
-    make_plot(x2, x̂2, ax, colours[3], L"w = 2")
-    make_plot(x1, x̂1, ax, colours[2], L"w = 0")
+    make_plot(ax, x2, colours[3], L"w = 2")
+    make_plot(ax, x1, colours[2], L"w = 0")
     axislegend(position=:rb, orientation=:horizontal, nbanks=2, labelsize=12)
     ylims!(ax, (-20,8))
     xlims!(ax, (1,25))
@@ -69,12 +65,12 @@ with_theme(theme_latexfonts()) do
 end
 
 with_theme(theme_latexfonts()) do
-    fig = Figure(size = (400, 280))
+    fig = Figure(size = (450, 240))
     ax = Axis(fig[1,1], xlabel="Time samples", ylabel="States")
-    make_plot(x2, x̂2, ax, colours[3], L"w = 2"; plot_observer=true)
-    make_plot(x1, x̂1, ax, colours[2], L"w = 0"; plot_observer=true)
+    make_plot(ax, x̂2, colours[3], L"w = 2")
+    make_plot(ax, x̂1, colours[2], L"w = 0")
     axislegend(position=:rb, orientation=:horizontal, nbanks=2, labelsize=12)
-    ylims!(ax, (-18,8))
+    ylims!(ax, (-20,8))
     xlims!(ax, (1,25))
-    save(joinpath(@__DIR__, "../results/disturbance_example_dx_extended.pdf"), fig)
+    save(joinpath(@__DIR__, "../results/disturbance_example_dx_observer.pdf"), fig)
 end
