@@ -134,8 +134,8 @@ colours = Makie.wong_colors()
 colour_yr = colours[2]
 colour_b = colours[4]
 colour_o = colours[1]
-colour_vl = colours[5]
-colour_vm = colours[3]
+colour_vl = :dodgerblue
+colour_vm = :coral
 
 n_yr = length(μ_yr)
 xc_yr = vcat(1, 5:5:((n_yr - 1) * 5))
@@ -270,4 +270,83 @@ with_theme(theme_latexfonts()) do
 
     resize_to_layout!(fig)
     save(string(fpath_vanilla, "lcp_vanilla_rollouts.pdf"), fig)
+end
+
+
+#######################################################################
+#
+# Plot 3: Best LR training curves for both models
+#
+#######################################################################
+
+# Get the costs at the best learning rate for each model
+li_lstm = findfirst(==(best_lstm.lr), learning_rates)
+li_mlp = findfirst(==(best_mlp.lr), learning_rates)
+costs_vl_best_lr = costs_vl_by_lr[li_lstm]
+costs_vm_best_lr = costs_vm_by_lr[li_mlp]
+
+with_theme(theme_latexfonts()) do
+
+    fig = Figure(size=(550, 320), fontsize=19)
+    ga = fig[1,1] = GridLayout()
+    gb = fig[1,2] = GridLayout()
+
+    ax = Axis(ga[1,1],
+        xlabel="Training epochs",
+        ylabel="Time-averaged test cost",
+        yscale=Makie.log10,
+        xticks=WilkinsonTicks(3; k_min=3, k_max=4)
+    )
+
+    # Youla-REN aggregated
+    plot_loss!(ax, xc_yr, μ_yr, max_yr, min_yr;
+               color=colour_yr, label="Youla-γREN")
+
+    # MLP curves (thin, all same colour)
+    first_mlp = true
+    for entry in costs_vm_best_lr
+        xc_si = vcat(1, 5:5:((length(entry.cost) - 1) * 5))
+        label = first_mlp ? "Black-box MLP" : nothing
+        lines!(ax, xc_si, entry.cost; linewidth=1.25, color=(colour_vm, 0.5), label)
+        first_mlp = false
+    end
+
+    # LSTM curves (thin, all same colour), then highlight best
+    first_lstm = true
+    for entry in costs_vl_best_lr
+        entry.batch_id == best_lstm.batch_id && continue
+        xc_si = vcat(1, 5:5:((length(entry.cost) - 1) * 5))
+        label = first_lstm ? "Black-box LSTM" : nothing
+        lines!(ax, xc_si, entry.cost; linewidth=1.25, color=(colour_vl, 0.5), label)
+        first_lstm = false
+    end
+
+    # Best LSTM on top
+    best_entry = findfirst(e -> e.batch_id == best_lstm.batch_id, costs_vl_best_lr)
+    if !isnothing(best_entry)
+        c = costs_vl_best_lr[best_entry].cost
+        xc_si = vcat(1, 5:5:((length(c) - 1) * 5))
+        lbl = first_lstm ? "Black-box LSTM" : nothing
+        lines!(ax, xc_si, c; linewidth=2, color=colour_vl, label=lbl)
+    end
+
+    # Reference lines
+    n_max_all = max(
+        maximum(length(e.cost) for e in costs_vl_best_lr),
+        maximum(length(e.cost) for e in costs_vm_best_lr),
+        n_yr
+    )
+    xc_ref = vcat(1, 5:5:((n_max_all - 1) * 5))
+    lines!(ax, xc_ref, J_base * ones(n_max_all), linestyle=:dash, color=colour_b,
+           label="Base", linewidth=2)
+    lines!(ax, xc_ref, J_opt * ones(n_max_all), linestyle=:dash, color=colour_o,
+           label=L"LQG (known $m_p$)", linewidth=2)
+
+    xlims!(ax, 0, xc_ref[end])
+    ylims!(ax, J_opt * 0.8, 1e35)
+
+    Legend(gb[1,1], ax, orientation=:vertical)
+
+    resize_to_layout!(fig)
+    save(string(fpath_vanilla, "lcp_vanilla_combined_training.pdf"), fig)
 end

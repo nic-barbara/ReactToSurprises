@@ -72,7 +72,7 @@ To reproduce the results in Figure 10 (c) for the uncertain linear cartpole exam
 
 ### A Note on Terminology
 
-Many of the variable names in the code refer to `Feedback-REN` or `Feedback-LSTM`. The "Feedback" architecture is called Residual-RL in the paper.
+Many of the variable names in the code refer to `Feedback-REN` or `Feedback-LSTM`. The "Feedback" architecture is called Residual-RL in the paper. Similarly for "Vanilla-MLP" and "Vanilla-LSTM", which are called "Black-box MLP" and "Black-box LSTM".
 
 
 ## Contact
