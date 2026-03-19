@@ -252,7 +252,7 @@ with_theme(theme_latexfonts()) do
     rowgap!(fig.layout, 5)
 
     ax = Axis(ga[1,1],
-        xlabel="Test horizon / Train horizon",
+        xlabel="Time (test horizon/train horizon)",
         ylabel="Time-averaged test cost"
     )
 

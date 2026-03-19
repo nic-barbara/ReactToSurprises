@@ -126,7 +126,7 @@ with_theme(theme_latexfonts()) do
     colgap!(fig.layout, 1, Relative(0.08))
 
     ax1 = Axis(ga1[1,1], xlabel="Training epochs", ylabel="Time-averaged test cost", xticks=WilkinsonTicks(4; k_min=4, k_max=8))
-    ax2 = Axis(ga2[1,1], xlabel="Test horizon/Train horizon", yticklabelsvisible=false)
+    ax2 = Axis(ga2[1,1], xlabel="Time (test horizon/train horizon)", yticklabelsvisible=false)
 
     # Panel 1: loss curves
     n = length(costs_yr[1])
@@ -256,7 +256,7 @@ with_theme(theme_latexfonts()) do
 
     # x-axis label
     ga3 = fig[2,1:2] = GridLayout()
-    Label(ga3[1,1], text="Test horizon/Train horizon")
+    Label(ga3[1,1], text="Time (test horizon/train horizon)")
     Legend(ga3[2,1], ax1, orientation=:horizontal, linewidth=10)
 
     save(string(
@@ -349,7 +349,7 @@ with_theme(theme_latexfonts()) do
 
     # Training and rollout costs
     ax1 = Axis(ga1[1,1], xlabel="Training epochs", ylabel="Time-averaged test cost", xticks=WilkinsonTicks(4; k_min=4, k_max=8))
-    ax2 = Axis(ga2[1,1], xlabel="Test horizon/Train horizon", ylabel="Time-averaged test cost")
+    ax2 = Axis(ga2[1,1], xlabel="Time (test horizon/train horizon)", ylabel="Time-averaged test cost")
 
     # Panel 1: loss curves
     n = length(costs_yr[1])

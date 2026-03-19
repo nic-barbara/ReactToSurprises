@@ -119,12 +119,12 @@ colour_n = :grey64
 with_theme(theme_latexfonts()) do
 
     # Figure setup
-    fig = Figure(size=(550,370), fontsize=19)
+    fig = Figure(size=(580,380), fontsize=18)
     ga1 = fig[1,1] = GridLayout()
     ga2 = fig[2,1] = GridLayout()
 
     ax1 = Axis(ga1[1,1], xlabel="Training epochs", ylabel="Time-averaged test cost", xticks=WilkinsonTicks(4; k_min=4, k_max=8))
-    ax2 = Axis(ga1[1,2], xlabel="Test horizon/Train horizon", yticklabelsvisible=false)
+    ax2 = Axis(ga1[1,2], xlabel="Time (test horizon/train horizon)", yticklabelsvisible=false)
 
     # Panel 1: loss curves
     n = length(costs_yr[1])

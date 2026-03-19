@@ -175,7 +175,7 @@ with_theme(theme_latexfonts()) do
         t = LinRange(0, length(Jb) / G.max_steps, length(Jb))
 
         # Set up labels and axis
-        xlab = i == 3 ? "Test horizon/Train horizon" : ""
+        xlab = i == 3 ? "Time (test horizon/train horizon)" : ""
         ylab = i == 2 ? "Time-averaged test cost" : ""
         xvis = i == 3 ? true : false
         title = "Training epoch: $(epoch)"
@@ -227,7 +227,7 @@ with_theme(theme_latexfonts()) do
         t = LinRange(0, length(Jb) / G.max_steps, length(Jb))
 
         # Set up labels and axis
-        xlab = i == 3 ? "Test horizon/Train horizon" : ""
+        xlab = i == 3 ? "Time (test horizon/train horizon)" : ""
         ylab = i == 2 ? "Time-averaged test cost" : ""
         xvis = i == 3 ? true : false
         title = "Training epoch: $(epoch)"
