@@ -106,10 +106,10 @@ The weighting filter $\mathcal{W}_2(s) = (s+3)^4 / \big(\nu\,(s+50)^4\big)$ is d
 
 | Policy | lr schedule | $\nu$ in $\mathcal{W}_2$ | Lipschitz bound $\gamma$ |
 |---|---|---|---|
-| Youla-$\gamma$REN | 1/2, 7/8 | $5 \times 10^{-4}$ | 1.7 |
-| Youla-$\gamma$REN (linear) | 1/2, 7/8 | $5 \times 10^{-4}$ | 1.7 |
-| Youla-$\gamma$REN (no filter) | 3/4, 7/8 | – | 120 |
-| Residual-$\gamma$REN | 1/2, 7/8 | $10^{-2}$ | 0.15 |
+| Youla-γREN | 1/2, 7/8 | $5 \times 10^{-4}$ | 1.7 |
+| Youla-γREN (linear) | 1/2, 7/8 | $5 \times 10^{-4}$ | 1.7 |
+| Youla-γREN (no filter) | 3/4, 7/8 | – | 120 |
+| Residual-γREN | 1/2, 7/8 | $10^{-2}$ | 0.15 |
 | Residual-LSTM | 3/4, 7/8 | – | – |
 
 ### Table 3: Black-box policies (Section VII.D.3, Figure 13)
