@@ -144,3 +144,47 @@ with_theme(theme_latexfonts()) do
         ), fig
     )
 end
+
+# Re-do the plot. This time, single-column format.
+with_theme(theme_latexfonts()) do
+
+    # Set up figure
+    fig = Figure(size=(400,420), fontsize=18, figure_padding=20)
+    ga1 = fig[1,1] = GridLayout()
+
+    # Set up axes
+    ax1 = Axis(ga1[1,1], xlabel="Training epochs", ylabel="Test cost")
+    ax3 = Axis(ga1[2,1], xticklabelsvisible=false, ylabel=L"u(t)")
+    ax2 = Axis(ga1[3,1], xlabel="Time (s)", ylabel=L"x_2(t)")
+
+    # Panel 1: cost curve
+    band!(ax1, xc, max_yr, min_yr, color = (colour_y, 0.3))
+    lines!(ax1, xc, μ_yr; color=colour_y, linewidth=2, label="Youla")
+    lines!(ax1, xc, J_base*ones(n); color=colour_b, linewidth=2,   
+           linestyle=:dash,label="Base")
+
+    # Panels 2 and 3: trajectory rollouts
+    axs = [ax2, ax3]
+    plot_trajectories!(axs, xs_b, us_b; color=colour_b, label="Base")
+    plot_trajectories!(axs, xs_y, us_y; color=colour_y, label="Youla")
+
+    # Plot reference states and limits
+    zs = zeros(size(ts))
+    os = ones(size(ts))
+    lines!(ax3, ts, umax .* os, color=colour_max, linestyle=:dot)
+    lines!(ax3, ts, -umax .* os, color=colour_max, linestyle=:dot, label=L"\pm u_\text{max}")
+
+    # Set axes limits
+    xlims!(ax1, 0, 2000)
+    ylims!(ax1, 0, 1.1*J_base)
+
+    xlims!(ax2, minimum(ts), 6) #maximum(ts))
+    xlims!(ax3, minimum(ts), 6) #maximum(ts))
+
+    # Add a legend and format
+    axislegend(ax1, position=:rt)
+    save(string(
+        @__DIR__, "/../../results/nonlinear-system/nonlinear_system_results_singlecol.pdf"
+        ), fig
+    )
+end

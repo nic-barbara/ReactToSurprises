@@ -83,6 +83,7 @@ Gy_nofilter = ss(1, dt)
 # Store in struct
 K_base = StaticLQG(K, L, Gf_filter, Gy_filter)
 K_base_nofilter = StaticLQG(K, L, Gf_nofilter, Gy_nofilter)
+K_vanilla = StaticLQG(0*K, L, Gf_nofilter, Gy_nofilter)
 
 # Nominal-mass optimal controller (for evaluation)
 K_lqg_nom = lqr(Discrete, Anom, B, Q, R)

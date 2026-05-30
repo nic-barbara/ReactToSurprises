@@ -175,7 +175,7 @@ with_theme(theme_latexfonts()) do
         t = LinRange(0, length(Jb) / G.max_steps, length(Jb))
 
         # Set up labels and axis
-        xlab = i == 3 ? "Test horizon/Train horizon" : ""
+        xlab = i == 3 ? "Time (test horizon/train horizon)" : ""
         ylab = i == 2 ? "Time-averaged test cost" : ""
         xvis = i == 3 ? true : false
         title = "Training epoch: $(epoch)"
@@ -194,6 +194,58 @@ with_theme(theme_latexfonts()) do
 
     save(string(
         @__DIR__, "/../../results/stability-guarantees/stability_guarantees_learning.pdf"
+        ), fig
+    )
+end
+
+# Second version of the figure in single-column environment
+with_theme(theme_latexfonts()) do
+    fig = Figure(size=(450,700), fontsize=19, figure_padding=20)
+    ga = fig[1, 1] = GridLayout()
+    gb = fig[2, 1] = GridLayout()
+    rowsize!(fig.layout, 1, Relative(6.4/15))
+    rowgap!(fig.layout, 1, Relative(0.05))
+
+    # Main chart: training cost vs epochs in bands
+    ax = Axis(ga[1,1], xlabel="Training epochs", ylabel="Training cost", yscale=Makie.log10)
+    plot_loss(ax, μ_y, max_y, min_y, "Youla", colour_y)
+    plot_loss(ax, μ_f, max_f, min_f, "Residual", colour_f)
+
+    n = length(costs_y[1])
+    lines!(ax, J_base*ones(n), linestyle=:dash, color=colour_b, label="Base", linewidth=2)
+    lines!(ax, J_opt*ones(n),  linestyle=:dash, color=colour_o, label="Optimal", linewidth=2)
+
+    axislegend(ax, position=:rt)
+    xlims!(ax, 0, n)
+    ylims!(ax, 10^3.5, 10^5.5)
+
+    # Plot rollouts at the checkpoints
+    for i in eachindex(rollout_data)
+        
+        # Get data
+        Jb, Jo, Jy, Jf, epoch = rollout_data[i]
+        t = LinRange(0, length(Jb) / G.max_steps, length(Jb))
+
+        # Set up labels and axis
+        xlab = i == 3 ? "Time (test horizon/train horizon)" : ""
+        ylab = i == 2 ? "Time-averaged test cost" : ""
+        xvis = i == 3 ? true : false
+        title = "Training epoch: $(epoch)"
+        ax_i = Axis(gb[i,1], xlabel=xlab, ylabel=ylab, yscale=Makie.log10, 
+                    xticklabelsvisible=xvis,  yticks=LogTicks(WilkinsonTicks(3)),
+                    title=title, titlefont=:regular)
+
+        # Make the plots
+        lines!(ax_i, t, Jy, linewidth=2, color=colour_y)
+        lines!(ax_i, t, Jf, linewidth=2, color=colour_f)
+        lines!(ax_i, t, Jb, linewidth=2, color=colour_b, linestyle=:dash)
+        lines!(ax_i, t, Jo, linewidth=2, color=colour_o, linestyle=:dash)
+        xlims!(ax_i, t[1], t[end])
+        ylims!(ax_i, 10^3.5, 10^4.5)
+    end
+
+    save(string(
+        @__DIR__, "/../../results/stability-guarantees/stability_guarantees_learning_singlecol.pdf"
         ), fig
     )
 end

@@ -16,7 +16,7 @@ include(joinpath(@__DIR__, "setup_mass.jl"))
 #######################################################################
 
 # Load the costs
-fpath = joinpath(@__DIR__, "../../results/model-uncertainty/batch-inputfilter/")
+fpath = joinpath(@__DIR__, "../../results/model-uncertainty/batch/")
 fnames = get_bson_files(fpath)
     
 load_data(fname, key) = BSON.load(fname)[key]
@@ -43,6 +43,11 @@ fname = string(fpath, name)
 youla_ren  = REN(load_data(fname, "youla_ren"))
 fdbak_lstm = load_data(fname, "fdbak_lstm")
 
+# Also load the vanilla LSTM results (black-box) for comparison
+fpath_vanilla = joinpath(@__DIR__, "../../results/model-uncertainty/batch-vanilla/")
+fname_vanilla = string(fpath_vanilla, "showcase/lcp_vanilla_$(label)_154nvl_177nvm_best.bson")
+vanilla_lstm = load_data(fname_vanilla, "vanilla_lstm")
+
 base_ren = deepcopy(youla_ren)
 set_output_zero!(base_ren)
 
@@ -55,6 +60,7 @@ test_horizon = 12 * train_horizon
 nf = K_base.nx_filter
 test_states_ren = init_states!(G, base_ren.nx, nf, test_batches; rng=rng_())
 test_states_lstm = init_states!(G, fdbak_lstm.nx, 0, test_batches; rng=rng_())
+test_states_vlstm = init_states!(G, vanilla_lstm.nx, nf, test_batches; rng=rng_())
 test_states_opt = init_states!(Gopt, 0, 0, test_batches; rng=rng_())
 
 w_test = procnoise(G, test_batches, test_horizon; rng=rng_())
@@ -72,6 +78,7 @@ end
 J_bs, traj_b = sim_test(base_ren, test_states_ren, K_base)
 J_yr, traj_yr = sim_test(youla_ren, test_states_ren, K_base)
 J_fl, traj_fl = sim_test(fdbak_lstm, test_states_lstm, K_base_nofilter; youla=false)
+J_vl, traj_vl = sim_test(vanilla_lstm, test_states_vlstm, K_vanilla; youla=false)
 
 # Compute the optimal costs too
 _, _, traj_o = simulate(Gopt, cost, test_states_opt; horizon=test_horizon, 
@@ -106,6 +113,7 @@ colour_fl = colours[3]
 colour_b = colours[4]
 colour_o = colours[1]
 colour_n = :grey64
+colour_vl = :dodgerblue
 
 with_theme(theme_latexfonts()) do
 
@@ -118,7 +126,7 @@ with_theme(theme_latexfonts()) do
     colgap!(fig.layout, 1, Relative(0.08))
 
     ax1 = Axis(ga1[1,1], xlabel="Training epochs", ylabel="Time-averaged test cost", xticks=WilkinsonTicks(4; k_min=4, k_max=8))
-    ax2 = Axis(ga2[1,1], xlabel="Test horizon/Train horizon", yticklabelsvisible=false)
+    ax2 = Axis(ga2[1,1], xlabel="Time (test horizon/train horizon)", yticklabelsvisible=false)
 
     # Panel 1: loss curves
     n = length(costs_yr[1])
@@ -133,6 +141,7 @@ with_theme(theme_latexfonts()) do
     # Panel 2: cost rollouts
     lines!(ax2, t, J_yr, linewidth=2, color=colour_yr, label="Youla-γREN")
     lines!(ax2, t, J_fl, linewidth=2, color=colour_fl, label="Residual-LSTM")
+    lines!(ax2, t, J_vl, linewidth=2, color=colour_vl, label="Black-Box LSTM")
     lines!(ax2, t, J_bs, linewidth=2, color=colour_b, linestyle=:dash, label="Base")
     lines!(ax2, t, J_os, linewidth=2, color=colour_o, linestyle=:dash, label=L"LQG (known $m_p$)")
    
@@ -190,7 +199,7 @@ _, traj_fl = sim_test(fdbak_lstm, test_states_lstm, K_base_nofilter; youla=false
 
 # x-axis for plotting
 npoints = length(traj_b[1])
-t = LinRange(0, npoints / train_horizon, npoints)
+t_traj = LinRange(0, npoints / train_horizon, npoints)
 
 
 """
@@ -213,9 +222,9 @@ function plot_trajs!(ax, traj, indx, ylim)
     for k in axes(x,2)
         label = L"$m_p = %$(ρs[k])$\,kg"
         color = colours[k]
-        lines!(ax, t, x[:,k]; linewidth=1.2, label, color, alpha=(1.0 - (k-1)*0.1))
+        lines!(ax, t_traj, x[:,k]; linewidth=1.2, label, color, alpha=(1.0 - (k-1)*0.1))
     end
-    xlims!(ax, t[1], t[end])
+    xlims!(ax, t_traj[1], t_traj[end])
     ylims!(ax, ylim...)
 end
 
@@ -247,7 +256,7 @@ with_theme(theme_latexfonts()) do
 
     # x-axis label
     ga3 = fig[2,1:2] = GridLayout()
-    Label(ga3[1,1], text="Test horizon/Train horizon")
+    Label(ga3[1,1], text="Time (test horizon/train horizon)")
     Legend(ga3[2,1], ax1, orientation=:horizontal, linewidth=10)
 
     save(string(
@@ -269,12 +278,12 @@ fname = string(fpath, name)
 data = BSON.load(fname)
 
 ρs = data["ρs"]
-J_bs = data["J_bs"]
-J_nom = data["J_nom"]
-J_yr = data["J_yr"]
-J_fl = data["J_fl"]
-J_os = data["J_os"]
-J_os_lti = data["J_os_lti"]
+Js_bs = data["J_bs"]
+Js_nom = data["J_nom"]
+Js_yr = data["J_yr"]
+Js_fl = data["J_fl"]
+Js_os = data["J_os"]
+Js_os_lti = data["J_os_lti"]
 lo_range_max = data["lo_range_max"]
 hi_range_min = data["hi_range_min"]
 
@@ -306,16 +315,16 @@ with_theme(theme_latexfonts()) do
 
     # Plot
     linewidth = 2
-    lines!(ax, x, J_yr; color=colour_yr, linewidth, label="Youla-γREN")
-    lines!(ax, x, J_fl; color=colour_fl, linewidth, label="Residual-LSTM")
-    lines!(ax, x, J_bs; color=colour_b, linewidth, linestyle=:dash, label="Base")
-    lines!(ax, x, J_os; color=colour_o, linewidth, linestyle=:dash, label=L"LQG (known $m_p$)")
-    lines!(ax, x, J_os_lti; color=:purple, linewidth, linestyle=:dash, alpha=0.8, label=L"LTI LQG (known $m_p$)")
-    lines!(ax, x, J_nom; color=colour_n, linewidth, linestyle=:dash, label=L"LTI LQG (nominal $m_p$)")
+    lines!(ax, x, Js_yr; color=colour_yr, linewidth, label="Youla-γREN")
+    lines!(ax, x, Js_fl; color=colour_fl, linewidth, label="Residual-LSTM")
+    lines!(ax, x, Js_bs; color=colour_b, linewidth, linestyle=:dash, label="Base")
+    lines!(ax, x, Js_os; color=colour_o, linewidth, linestyle=:dash, label=L"LQG (known $m_p$)")
+    lines!(ax, x, Js_os_lti; color=:purple, linewidth, linestyle=:dash, alpha=0.8, label=L"LTI LQG (known $m_p$)")
+    lines!(ax, x, Js_nom; color=colour_n, linewidth, linestyle=:dash, label=L"LTI LQG (nominal $m_p$)")
 
     # Format
     xlims!(ax, minimum(x), maximum(x))
-    # ylims!(ax, -5, maximum(J_bs))
+    # ylims!(ax, -5, maximum(Js_bs))
     ylims!(ax, 0.6, 10^4.5)
     Legend(ga2[1,1], ax, orientation=:horizontal, nbanks=3)
 
@@ -323,6 +332,77 @@ with_theme(theme_latexfonts()) do
     ax.width = 250 # to stop labels being chopped off
     save(string(
         @__DIR__, "/../../results/model-uncertainty/lcp_youla_residual_sensitivity.pdf"
+        ), fig
+    )
+end
+
+
+# Second version combines everything
+with_theme(theme_latexfonts()) do
+
+    # Figure setup
+    fig = Figure(size=(1200,300), fontsize=18)
+    ga1 = fig[1,1] = GridLayout()
+    ga2 = fig[1,2] = GridLayout()
+    ga3 = fig[1,3] = GridLayout()
+    ga4 = fig[1,4] = GridLayout()
+
+    # Training and rollout costs
+    ax1 = Axis(ga1[1,1], xlabel="Training epochs", ylabel="Time-averaged test cost", xticks=WilkinsonTicks(4; k_min=4, k_max=8))
+    ax2 = Axis(ga2[1,1], xlabel="Time (test horizon/train horizon)", ylabel="Time-averaged test cost")
+
+    # Panel 1: loss curves
+    n = length(costs_yr[1])
+    plot_loss!(ax1, μ_yr, max_yr, min_yr; color=colour_yr, label="Youla-γREN")
+    plot_loss!(ax1, μ_fl, max_fl, min_fl; color=colour_fl, label="Residual-LSTM")
+    
+    lines!(ax1, xc, J_base*ones(n), linestyle=:dash, color=colour_b, label="Base", linewidth=2)
+    lines!(ax1, xc, J_opt*ones(n) , linestyle=:dash, color=colour_o, label=L"LQG (known $m_p$)", linewidth=2)    
+    xlims!(ax1, 0, xc[end])
+    ylims!(ax1, -4, 1.2*J_base)
+
+    # Panel 2: cost rollouts
+    lines!(ax2, t, J_yr, linewidth=2, color=colour_yr, label="Youla-γREN")
+    lines!(ax2, t, J_fl, linewidth=2, color=colour_fl, label="Residual-LSTM")
+    lines!(ax2, t, J_vl, linewidth=2, color=colour_vl, label="Black-box LSTM")
+    lines!(ax2, t, J_bs, linewidth=2, color=colour_b, linestyle=:dash, label="Base")
+    lines!(ax2, t, J_os, linewidth=2, color=colour_o, linestyle=:dash, label=L"LQG (known $m_p$)")
+   
+    xlims!(ax2, t[1], t[end])
+    ylims!(ax2, -4, 1.2*J_base)
+
+    # Third panel: cost vs. pole mass
+    xlabs = [0.15, 0.2, 0.34]
+    ax = Axis(
+        ga3[1,1], xminorticksvisible=true, xminorgridvisible=true, 
+        xscale=Makie.logit, ylabel="Test cost", titlefont=:regular, 
+        xlabel=L"Pole mass $m_p$ (kg)",
+        xminorticks = IntervalsBetween(4),
+        xticks = (normalize(xlabs), string.(xlabs)),
+        yscale = Makie.log10
+    )
+
+    # Change x-scale for nice plotting
+    x = normalize(ρs)
+
+    # Plot
+    linewidth = 2
+    lines!(ax, x, Js_yr; color=colour_yr, linewidth, label="Youla-γREN")
+    lines!(ax, x, Js_fl; color=colour_fl, linewidth, label="Residual-LSTM")
+    lines!(ax, [NaN], [NaN]; color=colour_vl, linewidth=2, label="Black-box LSTM")
+    lines!(ax, x, Js_bs; color=colour_b, linewidth, linestyle=:dash, label="Base")
+    lines!(ax, x, Js_os; color=colour_o, linewidth, linestyle=:dash, label=L"LQG (known $m_p$)")
+    lines!(ax, x, Js_os_lti; color=:purple, linewidth, linestyle=:dash, alpha=0.8, label=L"LTI LQG (known $m_p$)")
+    lines!(ax, x, Js_nom; color=colour_n, linewidth, linestyle=:dash, label=L"LTI LQG (nominal $m_p$)")
+
+    # Format
+    xlims!(ax, minimum(x), maximum(x))
+    ylims!(ax, 0.6, 10^4.5)
+    Legend(ga4[1,1], ax, orientation=:vertical)
+
+    # Add legend and save
+    save(string(
+        @__DIR__, "/../../results/model-uncertainty/lcp_youla_residual_costs_fullwidth.pdf"
         ), fig
     )
 end

@@ -22,7 +22,7 @@ end
     batch_ids = [0,1,2,5,6,7]
 
     # Make a results folder
-    savedir = string(@__DIR__, "/../../results/model-uncertainty/batch-inputfilter/")
+    savedir = string(@__DIR__, "/../../results/model-uncertainty/batch/")
     if !isdir(savedir)
         mkdir(savedir)
     end
@@ -43,7 +43,7 @@ end
     #
     ###########################################################
 
-    function run_experiment_and_plot(batch_id::Int)
+    function run_experiment_and_plot(batch_id::Int; verbose=true)
 
         # Set random seeds
         rng = Xoshiro(batch_id)
@@ -71,6 +71,16 @@ end
         fdbak_ren = LipschitzRENParams{Float32}(nu, nx, nv, ny, γ_fren_filt; rng, nl=nonlinearity, init)
         fdbak_lstm = LSTMNetwork(nu, nv_lstm, ny; rng, T=Float32)
 
+        # To check out the size of the models
+        if verbose
+            println("youla_ren:      ", get_network_size(youla_ren))
+            println("youla_lren:     ", get_network_size(youla_lren))
+            println("youla_ren_nf:   ", get_network_size(youla_ren_nf), "\n")
+
+            println("fdbak_ren:      ", get_network_size(fdbak_ren))
+            println("fdbak_lstm:     ", get_network_size(fdbak_lstm))
+        end
+
         # Set output to zero on init
         set_output_zero!(youla_ren)
         set_output_zero!(youla_lren)
@@ -89,7 +99,6 @@ end
         test_seed = 1
 
         # Train models
-        verbose=false
         costs_yr = train_model!(
             youla_ren, G, K_base, cost; rng, lr=1e-3, nepochs=1600, train_batches,
             max_steps, train_horizon, test_horizon, test_batches, youla=true, domain_rand,

@@ -62,9 +62,9 @@ Qfilter = c2d(1 / Qfilter_inv, dt);
 Ffilter = c2d(1 / Ffilter_inv, dt);
 
 % Plotting options
-freqs = {2*pi*5e-3, 2*pi*1e2};
+freqs = {2*pi*5e-3, 2*pi*24};
 opts = struct;
-opts.fsize = 24;
+opts.fsize = 18;
 opts.lwidth = 2;
 opts.PhaseVisible = 'off';
 opts.phasematch = 'on';
@@ -75,7 +75,7 @@ figure('Units', 'normalized', 'Position', [0.25, 0.25, 0.34, 0.37]);
 hold on;
 
 for mp = mp_list
-    
+
     % Build up closed-loop systems, G: u~ -> y and Gd: u~ -> y~
     Amp = Ad_func(mp);
     Ag = [Amp, -B*K; L*C, A_nom - B*K - L*C];
@@ -84,7 +84,7 @@ for mp = mp_list
     Cg2 = [C -C];
     G  = ss(Ag, Bg, Cg1, D, dt);
     Gd = ss(Ag, Bg, Cg2, D, dt);
-    
+
     fprintf("mass: %.3f eig: %.4f\n", mp, max(abs(eig(Ag))));
 
     % Put on a bodeplot
