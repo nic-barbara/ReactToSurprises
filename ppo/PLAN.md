@@ -3,7 +3,8 @@
 ## Goal
 
 Add black-box LSTM policies trained with PPO to Fig. 13
-(`lcp_vanilla_combined_training.pdf`), with the MLP removed.
+(`lcp_vanilla_combined_training.pdf`), with the MLP removed. For the response
+to reviewers, also show black-box MLPs trained with PPO in a separate 2x2 figure.
 
 ## Rules
 
@@ -33,8 +34,10 @@ epoch, so the x-axis ("training epochs") means equal simulated data.
 
 ### Policies and critic
 
-- LSTM policy: y → LSTM(154) → linear → u. (An MLP policy, y → 4 × 177 ReLU → u,
-  was dropped after the pilot.)
+- LSTM policy: y → LSTM(154) → linear → u.
+- MLP policy: y → 4 × 177 ReLU → u (as in the APG experiments). Dropped after
+  the pilot, then reinstated for the response figure with the final LSTM
+  settings (no separate tuning).
 - Critic: MLP 4 × 177 ReLU, input (y, true state x). Asymmetric
   actor-critic, standard in sim-to-real RL. The policy never sees x.
 - Observation normalisation (RSL-RL `obs_normalization`, running mean/std, no
@@ -99,6 +102,12 @@ RSL-RL PPO defaults (no learning-rate sweep, default entropy), except γ and the
    collapsed as its exploration std grew (3 → 22), seed 5 held ~21–27 through
    the lr cuts and then drifted up from epoch ~6000 (to ~1e9 at 6400). Seeds
    0, 3 and 4 never stabilised the system. See the README for the table.
+9. **PPO-MLP for the response to reviewers:** six seeds with the final LSTM
+   settings, `--policy mlp`. Run on the CPU (`--device cpu`, 4 threads each):
+   ~1 s/epoch vs ~2 s/epoch with six runs sharing the GPU, since the networks
+   are tiny and GPU time-sharing dominates. At epoch ~1000, no seed had gone
+   below its untrained test cost and training episodes stayed at ~36–270 of
+   800 steps.
 
 ## Plotting
 
@@ -107,6 +116,11 @@ RSL-RL PPO defaults (no learning-rate sweep, default entropy), except γ and the
   (left) and "PPO" (right), shared log y-axis, shared x-label and a two-row
   boxed legend along the bottom. Black-box LSTMs in the same blue in both panels, best
   APG seed highlighted as before. Youla-γREN band and base/LQG references in both.
+- `lcp_vanilla_ppo_response.pdf` (response to reviewers, 600 × 420 pt): 2x2
+  grid, LSTM (top, blue) and MLP (bottom, coral, APG lr 1e-2 as in the original
+  Fig. 13) by analytic gradients (left) and PPO (right). All seeds, no
+  highlighted models, same 1e35 y-cap as the paper figure (the APG MLPs spike
+  to ~1e70, so fitting all the data hides everything else).
 
 ## Folder layout
 
@@ -115,13 +129,13 @@ ppo/
   PLAN.md               this file
   README.md             install and run instructions
   pyproject.toml        uv project
-  export_test_set.jl    dumps test set + reference costs from Julia
+  export_test_set.jl    dumps the test set from Julia
   cartpole.py           torch cart-pole env (RSL-RL) + test-set evaluation
-  train_ppo.py          trains one seed
-  run_sweep.sh          runs all 6 seeds in parallel on the GPU
-  plot_ppo.jl           the figure
+  train_ppo.py          trains one (policy, seed) run
+  run_sweep.sh          runs 6 seeds of one policy in parallel
+  plot_ppo.jl           paper and response figures
   data/                 exported test set
-  results/              PPO cost curves (CSV), logs, models, figure
+  results/              PPO cost curves (CSV), logs, models, figures
 ```
 
 ## Checklist
@@ -146,3 +160,7 @@ ppo/
 - [x] Clean up at the very end (after seeds 3–5 finish, since they use the current code): cut the code and saved results down to only the files needed to generate the data and figures for the final plots (e.g. drop unused MLP / rollout / sweep options and exploratory results), then update `ppo/README.md` to match
   - Done: LSTM-only code with the final config hard-coded; long test set and LQG validation removed from the export (validation kept as `to_delete/validate_lqg.py`, still matches Julia); results flattened into `results/ppo_lstm_s*.{csv,log}`; figures regenerated and unchanged; seed 0 retrained for 8 epochs and matched the saved run exactly
 - [x] User to review, then delete `to_delete/`
+- [x] MLP option reinstated in `train_ppo.py` / `run_sweep.sh` (LSTM path unchanged; seed 0 still reproduces exactly)
+- [ ] PPO-MLP × 6 seeds on CPU (started 20:14, ETA ~22:05)
+- [x] Response figure (2x2) written and tested on partial MLP data
+- [ ] Regenerate figures and add the MLP results to the README when the runs finish

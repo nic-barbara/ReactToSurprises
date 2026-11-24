@@ -1,6 +1,6 @@
 # PPO Baselines for the Uncertain Cart-Pole
 
-This folder trains black-box LSTM policies with Proximal Policy Optimisation (PPO) on the uncertain linear cart-pole from Section VII.D of the paper, and adds them to Figure 13 alongside the existing black-box policies trained with analytic policy gradients (APG). Training is in Python; exporting the test set and plotting are in Julia.
+This folder trains black-box LSTM and MLP policies with Proximal Policy Optimisation (PPO) on the uncertain linear cart-pole from Section VII.D of the paper, for comparison with the existing black-box policies trained with analytic policy gradients (APG). The PPO LSTMs are added to Figure 13 of the paper; both the LSTMs and MLPs are shown in a separate figure for the response to reviewers. Training is in Python; exporting the test set and plotting are in Julia.
 
 ## Disclaimer on AI Usage
 
@@ -13,7 +13,7 @@ PPO is the recurrent PPO implementation from [RSL-RL](https://github.com/leggedr
 
 **Same as the APG experiments** (`src/model-uncertainty/test-vanilla/`):
 - System, noise, pole masses (64 evenly spaced in [0.14, 0.35]) and initial state distribution.
-- Policy: LSTM with 154 hidden units and a linear output layer, which sees only the measured cart position.
+- Policies: LSTM with 154 hidden units and a linear output layer, or MLP with 4 hidden layers of 177 ReLU units. Both see only the measured cart position.
 - Batch: 64 parallel environments and 200 time steps per update, with episodes reset every 800 steps. One PPO update uses the same simulated data as one APG epoch.
 - Test cost: logged every 5 epochs on the identical test set (exported from Julia), with deterministic actions, 1600 time steps, and no early termination.
 - 6400 training epochs and 6 random seeds, with the learning rate reduced 10x at 3/4 and again at 7/8 of training.
@@ -31,6 +31,8 @@ See [PLAN.md](PLAN.md) for the history behind each choice.
 
 ## Results
 
+**LSTM:**
+
 | Seed | Best test cost | Epochs below base cost (405) | Final test cost (median, last 500 epochs) |
 |---|---|---|---|
 | 0 | 1e28 | never | 3e32 |
@@ -41,6 +43,8 @@ See [PLAN.md](PLAN.md) for the history behind each choice.
 | 5 | 9.8 | ~980–6000 | 7e6 |
 
 Three of the six seeds found policies with test costs comparable to the Youla-γREN, but none kept them until the end of training. The other three never stabilised the system over the test horizon.
+
+**MLP:** same settings as the LSTMs (no separate tuning). Runs in progress; results to be added when they finish.
 
 ## Installation
 
@@ -60,14 +64,19 @@ All commands are run from this folder.
 
         julia --project=.. export_test_set.jl
 
-2. Train the PPO LSTM policies (one per seed, in parallel on the GPU):
+2. Train the PPO policies (six seeds of one policy type, in parallel). The LSTMs were trained on the GPU and the MLPs on the CPU:
 
-        ./run_sweep.sh
+        ./run_sweep.sh lstm
+        OMP_NUM_THREADS=4 ./run_sweep.sh mlp --device cpu
 
-    Test costs (`results/ppo_lstm_s*.csv`), logs and model checkpoints are saved every 100 epochs. All six seeds take ~3 hours together on one RTX 50-series GPU (the GPU is the bottleneck, so running seeds in parallel is no faster than running them in sequence).
+    Test costs (`results/ppo_{lstm,mlp}_s*.csv`), logs and model checkpoints are saved every 100 epochs. The six LSTM seeds take ~3 hours together on one RTX 50-series GPU (the GPU is the bottleneck, so running seeds in parallel is no faster than running them in sequence). The six MLP seeds take ~2 hours together on a 32-core CPU, which is ~2.5x faster than sharing the GPU, since the networks are small.
 
-3. Plot the training curves for the paper: Fig. 13 split into two panels, analytic gradients (left) and PPO (right), with a shared y-axis and legend, at the original figure size (`results/lcp_vanilla_ppo_combined_training.pdf`).:
+3. Plot the training curves:
+    - For the paper: Fig. 13 split into two panels, analytic gradients (left) and PPO (right), LSTMs only, with a shared y-axis and legend, at the original figure size (`results/lcp_vanilla_ppo_combined_training.pdf`).
+    - For the response to reviewers: a 2x2 grid of LSTMs (top) and MLPs (bottom) trained with analytic gradients (left) and PPO (right), with no highlighted models (`results/lcp_vanilla_ppo_response.pdf`).
+
+    Run:
 
         julia --project=.. plot_ppo.jl
 
-Figures are saved to `results/`. Training uses the GPU, so results are not bit-for-bit reproducible.
+Figures are saved to `results/`. Results are not bit-for-bit reproducible (GPU training is non-deterministic, and CPU and GPU runs differ slightly).
