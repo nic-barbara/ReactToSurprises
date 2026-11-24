@@ -61,4 +61,10 @@ codegen/
 # Octave session info
 octave-workspace
 
+# My additions
 .DS_Store
+*.cpython*
+
+misc/*
+ppo/data/
+ppo/results/

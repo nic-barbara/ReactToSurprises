@@ -7,7 +7,7 @@ This repository contains all the code for the paper [*React to Surprises: Stable
 
 ## Installation and Setup
 
-The experiments in this repository are written in Julia `v1.10.0`. An easy way to install Julia is via [`juliaup`](https://github.com/JuliaLang/juliaup). For Mac or Linux, install with
+The experiments in this repository are written in Julia `v1.10.4`. An easy way to install Julia is via [`juliaup`](https://github.com/JuliaLang/juliaup). For Mac or Linux, install with
 
     curl -fsSL https://install.julialang.org | sh
 and follow the prompts in your terminal. For Windows, use
@@ -114,7 +114,7 @@ The weighting filter $\mathcal{W}_2(s) = (s+3)^4 / \big(\nu\,(s+50)^4\big)$ is d
 
 ### Table 3: Black-box policies (Section VII.D.3, Figure 13)
 
-The black-box MLP and LSTM policies in Figure 13 were trained for 4× longer than the stable architectures in Table 2 (6400 epochs), and results reported in the paper are the best-performing policy after sweeping the learning rate over $\{10^{-4}, 10^{-3}, 5 \times 10^{-3}, 10^{-2}\}$ with 3 random seeds per learning rate.
+The black-box MLP and LSTM policies in Figure 13 were trained for 4× longer than the stable architectures in Table 2 (6400 epochs), and results reported in the paper are the best-performing policy after sweeping the learning rate over $\{10^{-4}, 10^{-3}, 5 \times 10^{-3}, 10^{-2}\}$ with 6 random seeds per learning rate.
 
 | Policy | No. neurons | Training epochs | lr (selected) | lr schedule |
 |---|---|---|---|---|
@@ -122,6 +122,8 @@ The black-box MLP and LSTM policies in Figure 13 were trained for 4× longer tha
 | Black-box LSTM | $n_v = 154$ | 6400 | $10^{-2}$ | 3/4, 7/8 |
 
 All other settings (training horizon, batch size, noise, etc.) match those in Table 1, Section VII.D. Corresponding training scripts are in `src/model-uncertainty/test-vanilla/`.
+
+For all information on the LSTM variants trained with recurrent PPO, see the `ppo/` directory in this repository.
 
 ## Contact
 
