@@ -14,8 +14,9 @@ include(joinpath(@__DIR__, "../src/model-uncertainty/setup_mass.jl"))
 #
 #######################################################################
 
-# Best APG learning rate and seed (from choose_best_vanilla.jl)
+# Best APG learning rates and LSTM seed (from choose_best_vanilla.jl)
 best_lstm_apg = (lr=5e-3, batch_id=1)
+best_mlp_apg = (lr=1e-2,)
 
 # PPO runs
 ppo_dir = joinpath(@__DIR__, "results/")    # all seeds found here are plotted
@@ -36,6 +37,7 @@ get_batch_id(fname) = parse(Int, match(r"_v(\d+)\.bson$", fname).captures[1])
 
 costs_vl_apg = [(cost=load_data(f, "costs_vl"), batch_id=get_batch_id(f))
                 for f in fnames_lr(best_lstm_apg.lr)]
+costs_vm_apg = [load_data(f, "costs_vm") for f in fnames_lr(best_mlp_apg.lr)]
 
 fpath_youla = joinpath(@__DIR__, "../results/model-uncertainty/batch/")
 fnames_youla = get_bson_files(fpath_youla)
@@ -58,10 +60,14 @@ function read_ppo_costs(fname)
     return [parse(Float64, split(line, ",")[2]) for line in lines]
 end
 
-ppo_files = filter(f -> startswith(basename(f), "ppo_lstm_") && endswith(f, ".csv"),
+function load_ppo(policy)
+    files = filter(f -> startswith(basename(f), "ppo_$(policy)_") && endswith(f, ".csv"),
                    readdir(ppo_dir; join=true))
-costs_vl_ppo = read_ppo_costs.(ppo_files)
-println("PPO runs plotted: ", basename.(ppo_files))
+    println("PPO runs plotted: ", basename.(files))
+    return read_ppo_costs.(files)
+end
+costs_vl_ppo = load_ppo("lstm")
+costs_vm_ppo = load_ppo("mlp")
 
 
 #######################################################################
@@ -75,6 +81,7 @@ colour_yr = colours[2]
 colour_b = colours[4]
 colour_o = colours[1]
 colour_vl = :dodgerblue
+colour_vm = :coral
 
 # Costs are logged every 5 epochs (except the first point)
 epochs(c) = vcat(1, 5:5:((length(c) - 1) * 5))
@@ -139,3 +146,55 @@ with_theme(theme_latexfonts()) do
     save(joinpath(@__DIR__, "results/lcp_vanilla_ppo_combined_training.pdf"), fig)
 end
 
+
+#######################################################################
+#
+# Response to reviewers: 2x2 grid of LSTM (top) and MLP (bottom) policies
+# trained with APG (left) and PPO (right). No highlighted models.
+#
+#######################################################################
+
+with_theme(theme_latexfonts()) do
+
+    fig = Figure(size=(800, 560), fontsize=19)
+    ga = fig[1,1] = GridLayout()
+
+    xticks = [0, 3000, 6000]
+    costs_vl_apg_all = [e.cost for e in costs_vl_apg]
+    panels = [(costs_vl_apg_all, colour_vl),
+              (costs_vl_ppo, colour_vl),
+              (costs_vm_apg, colour_vm),
+              (costs_vm_ppo, colour_vm)]
+    n = maximum(length, vcat(costs_vl_apg_all, costs_vl_ppo, costs_vm_apg, costs_vm_ppo, [μ_yr]))
+
+    axs = [Axis(ga[i,j], yscale=Makie.log10, xticks=xticks, titlefont=:regular,
+                title=(i == 1 ? ["Analytic Gradients", "PPO"][j] : ""),
+                xticklabelsvisible=(i == 2), yticklabelsvisible=(j == 1))
+           for i in 1:2, j in 1:2]
+    linkaxes!(axs...)
+    Label(ga[3,1:2], text="Training epochs")
+    Label(ga[1:2,0], text="Time-averaged test cost", rotation=π/2)
+    colgap!(ga, 1, 5)
+    colgap!(ga, 2, 15)
+    rowgap!(ga, 1, 15)
+    rowgap!(ga, 2, 5)
+
+    for (ax, (costs, colour)) in zip(permutedims(axs)[:], panels)
+        plot_loss!(ax, epochs(μ_yr), μ_yr, max_yr, min_yr; color=colour_yr, label="Youla-γREN")
+        plot_seeds!(ax, costs, colour, nothing)
+        plot_refs!(ax, n)
+    end
+
+    elements = [
+        LineElement(color=colour_yr, linewidth=2),
+        LineElement(color=(colour_vl, 0.5), linewidth=1.25),
+        LineElement(color=(colour_vm, 0.5), linewidth=1.25),
+        LineElement(color=colour_b, linestyle=:dash, linewidth=2),
+        LineElement(color=colour_o, linestyle=:dash, linewidth=2),
+    ]
+    labels = ["Youla-γREN", "Black-box LSTM", "Black-box MLP", "Base", L"LQG (known $m_p$)"]
+    Legend(fig[2,1], elements, labels, orientation=:horizontal, nbanks=2)
+
+    resize_to_layout!(fig)
+    save(joinpath(@__DIR__, "results/lcp_vanilla_ppo_response.pdf"), fig)
+end

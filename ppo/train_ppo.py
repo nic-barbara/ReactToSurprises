@@ -1,11 +1,11 @@
 """
-Train a black-box LSTM policy on the uncertain cart-pole with PPO (RSL-RL).
+Train a black-box LSTM or MLP policy on the uncertain cart-pole with PPO (RSL-RL).
 
 The policy sees only the measurement y. The critic (an MLP) also sees the true
 state x (asymmetric actor-critic).
 
 Example:
-    uv run python train_ppo.py --seed 0
+    uv run python train_ppo.py --policy lstm --seed 0
 """
 import argparse
 import time
@@ -31,14 +31,17 @@ log_every = 5
 gamma = 0.999
 
 
-def make_cfg():
+def make_cfg(policy):
     """RSL-RL configuration. Other PPO hyperparameters are the RSL-RL defaults."""
-    actor = {"class_name": "RNNModel", "rnn_type": "lstm", "rnn_hidden_dim": nv_lstm,
-             "network_cfg": {"class_name": "torch.nn:Linear"},  # linear readout
-             "obs_normalization": True,
-             "distribution_cfg": {"class_name": "GaussianDistribution", "init_std": 1.0}}
+    gaussian = {"class_name": "GaussianDistribution", "init_std": 1.0}
     critic = {"class_name": "MLPModel", "hidden_dims": [nv_mlp] * 4,
               "activation": "relu", "obs_normalization": True}
+    if policy == "mlp":
+        actor = {**critic, "distribution_cfg": gaussian}
+    else:
+        actor = {"class_name": "RNNModel", "rnn_type": "lstm", "rnn_hidden_dim": nv_lstm,
+                 "network_cfg": {"class_name": "torch.nn:Linear"},  # linear readout
+                 "obs_normalization": True, "distribution_cfg": gaussian}
     return {
         "num_steps_per_env": train_horizon,
         "obs_groups": {"actor": ["policy"], "critic": ["policy", "privileged"]},
@@ -67,19 +70,20 @@ def test_cost(alg, test, device):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--policy", choices=["lstm", "mlp"], default="lstm")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--epochs", type=int, default=6400)
     parser.add_argument("--device", default="cuda")
     args = parser.parse_args()
 
     RESULTS_DIR.mkdir(exist_ok=True)
-    save_name = f"ppo_lstm_s{args.seed}"
+    save_name = f"ppo_{args.policy}_s{args.seed}"
     print("Starting experiment", save_name, flush=True)
 
     torch.manual_seed(args.seed)
     env = CartPoleEnv(train_batches, max_steps, gamma, seed=args.seed, device=args.device)
     obs = env.get_observations()
-    alg = PPO.construct_algorithm(obs, env, make_cfg(), args.device)
+    alg = PPO.construct_algorithm(obs, env, make_cfg(args.policy), args.device)
     decay_epochs = [int(args.epochs * f) for f in (3/4, 7/8)]
     test = load_test_set()
 
