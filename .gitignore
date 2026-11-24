@@ -67,4 +67,5 @@ octave-workspace
 
 misc/*
 ppo/data/
-ppo/results/
+ppo/results/*_model.pt
+ppo/results/*.log

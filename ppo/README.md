@@ -16,11 +16,11 @@ PPO is the recurrent PPO implementation from [RSL-RL](https://github.com/leggedr
 - Policy: LSTM with 154 hidden units and a linear output layer, which sees only the measured cart position.
 - Batch: 64 parallel environments and 200 time steps per update, with episodes reset every 800 steps. One PPO update uses the same simulated data as one APG epoch.
 - Test cost: logged every 5 epochs on the identical test set (exported from Julia), with deterministic actions, 1600 time steps, and no early termination.
-- 6400 training epochs, with the learning rate reduced 10x at 3/4 and again at 7/8 of training.
+- 6400 training epochs and 6 random seeds, with the learning rate reduced 10x at 3/4 and again at 7/8 of training.
 
 **Changed from RSL-RL defaults:**
 - Discount factor tuned to γ = 0.999 (default 0.99), so the effective horizon (~1/(1-γ) steps) covers the 800-step training episode. With γ = 0.99, PPO only looks ~100 steps ahead and the policies did not stabilise over the test horizon.
-- Learning rate fixed at 10x below its (adaptive) value at 3/4 of training, and 10x lower again at 7/8, as in the APG experiments, to check whether reducing the learning rate can improve convergence. In the end, it did not help: no policy was near a good cost when the learning rate was reduced, so the policies remained at high test costs.
+- Learning rate fixed at 10x below its (adaptive) value at 3/4 of training, and 10x lower again at 7/8, as in the APG experiments, to check whether reducing the learning rate can improve convergence. In the end, it did not help: only one policy (seed 5) was near a good cost when the learning rate was reduced. It stayed there until epoch ~6000, then its test cost drifted up to ~1e9 by the end of training anyway, and we could not save it.
 
 **Standard PPO practice needed for this problem** (training only; the policy architecture and test evaluation are unchanged):
 - Observation normalisation (running mean/std) for the policy and critic, and reward scaling by the running std of the discounted return.
@@ -28,6 +28,19 @@ PPO is the recurrent PPO implementation from [RSL-RL](https://github.com/leggedr
 - Training episodes are terminated early if any |state| > 100, with a penalty of (current stage cost) x (steps remaining), so failing early is never better than surviving. The open-loop system is unstable, and without this, diverging trajectories (states ~1e7) made PPO training numerically unstable.
 
 See [PLAN.md](PLAN.md) for the history behind each choice.
+
+## Results
+
+| Seed | Best test cost | Epochs below base cost (405) | Final test cost (median, last 500 epochs) |
+|---|---|---|---|
+| 0 | 1e28 | never | 3e32 |
+| 1 | 30.5 | ~3870–4185 | 7e29 |
+| 2 | 10.8 | ~1185–2840 | 1e30 |
+| 3 | 8e25 | never | 7e31 |
+| 4 | 5e28 | never | 1e31 |
+| 5 | 9.8 | ~980–6000 | 7e6 |
+
+Three of the six seeds found policies with test costs comparable to the Youla-γREN, but none kept them until the end of training. The other three never stabilised the system over the test horizon.
 
 ## Installation
 
@@ -43,17 +56,17 @@ The Julia scripts use the Julia project at the root of this repository (see the 
 
 All commands are run from this folder.
 
-1. Export the test set (initial states, noise, reference costs) from Julia, so that PPO policies are evaluated on exactly the same test set as the APG policies:
+1. Export the test set (initial states, noise, system matrices) from Julia, so that PPO policies are evaluated on exactly the same test set as the APG policies:
 
         julia --project=.. export_test_set.jl
 
 2. Train the PPO LSTM policies (one per seed, in parallel on the GPU):
 
-        ./run_sweep.sh g999 6400 "0 1 2 3 4 5" --gamma 0.999 --lr-decay
+        ./run_sweep.sh
 
-    Test costs (`results/g999/*.csv`) and model checkpoints are saved every 100 epochs.
+    Test costs (`results/ppo_lstm_s*.csv`), logs and model checkpoints are saved every 100 epochs. All six seeds take ~3 hours together on one RTX 50-series GPU (the GPU is the bottleneck, so running seeds in parallel is no faster than running them in sequence).
 
-3. Plot the two-panel training figure (APG left, PPO right):
+3. Plot the training curves, as Fig. 13 with the PPO policies added (`results/lcp_vanilla_ppo_combined_training.pdf`), and a side-by-side version with APG and PPO in separate panels (`results/lcp_vanilla_ppo_side_by_side.pdf`):
 
         julia --project=.. plot_ppo.jl
 

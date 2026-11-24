@@ -10,7 +10,7 @@ include(joinpath(@__DIR__, "../src/model-uncertainty/setup_mass.jl"))
 
 #######################################################################
 #
-# Settings (must match src/model-uncertainty/test-vanilla/ and run_sweep.sh)
+# Settings (must match src/model-uncertainty/test-vanilla/)
 #
 #######################################################################
 
@@ -18,7 +18,7 @@ include(joinpath(@__DIR__, "../src/model-uncertainty/setup_mass.jl"))
 best_lstm_apg = (lr=5e-3, batch_id=1)
 
 # PPO runs
-ppo_dir = joinpath(@__DIR__, "results/g999/")    # all seeds found here are plotted
+ppo_dir = joinpath(@__DIR__, "results/")    # all seeds found here are plotted
 
 
 #######################################################################

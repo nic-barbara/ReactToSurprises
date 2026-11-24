@@ -156,18 +156,9 @@ def load_test_set():
     return dict(x0=x0, w=w, v=v, As=As)
 
 
-def load_long_test_set():
-    """As `load_test_set`, but 12 x 800 steps long (raw Float64, column-major)."""
-    test = load_test_set()
-    n = test["x0"].shape[0]
-    read = lambda name, m: np.fromfile(DATA_DIR / name).reshape(-1, n, m)
-    test["w"], test["v"] = read("w_long.bin", 4), read("v_long.bin", 1)
-    return test
-
-
-def rollout_costs(policy, test):
+def simulate(policy, test):
     """
-    Stage cost at each time step (mean over envs) of a policy
+    Time-averaged test cost (mean over envs and time) of a policy
     `policy(y, state, first) -> (u, state)` on the test set.
     """
     x, w, v, As = test["x0"], test["w"], test["v"], test["As"]
@@ -179,12 +170,7 @@ def rollout_costs(policy, test):
         u = np.asarray(u, dtype=np.float64)
         costs[t] = np.mean(cost(x, u))
         x = dynamics(As, x, u, w[t])
-    return costs
-
-
-def simulate(policy, test):
-    """Time-averaged test cost (mean over envs and time)."""
-    return np.mean(rollout_costs(policy, test))
+    return np.mean(costs)
 
 
 def rsl_policy(actor, device):
@@ -196,14 +182,4 @@ def rsl_policy(actor, device):
         y = torch.tensor(y, dtype=torch.float32, device=device)
         obs = TensorDict({"policy": y}, batch_size=[y.shape[0]], device=device)
         return actor(obs).cpu().numpy(), None
-    return policy
-
-
-def lqg_policy(K, L, Anom):
-    """Base LQG controller (static Kalman filter + LQR gain), as in setup_mass.jl."""
-    def policy(y, xh, first):
-        xh = np.zeros((y.shape[0], 4)) if first else xh
-        u = -xh @ K.T
-        xh_next = xh @ Anom.T + u * B + (y - xh[:, :1]) @ L.T
-        return u, xh_next
     return policy

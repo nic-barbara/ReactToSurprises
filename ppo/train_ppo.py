@@ -1,11 +1,11 @@
 """
-Train a black-box MLP or LSTM policy on the uncertain cart-pole with PPO (RSL-RL).
+Train a black-box LSTM policy on the uncertain cart-pole with PPO (RSL-RL).
 
-The policy sees only the measurement y. The critic (always an MLP) also sees
-the true state x (asymmetric actor-critic).
+The policy sees only the measurement y. The critic (an MLP) also sees the true
+state x (asymmetric actor-critic).
 
 Example:
-    uv run python train_ppo.py --policy lstm --gamma 0.99 --seed 0
+    uv run python train_ppo.py --seed 0
 """
 import argparse
 import time
@@ -25,25 +25,26 @@ train_horizon = 200
 max_steps = 800
 nv_lstm = 154
 nv_mlp = 177
+log_every = 5
+
+# Changed from the RSL-RL defaults
+gamma = 0.999
 
 
-def make_cfg(policy, gamma, entropy_coef=0.01):
+def make_cfg():
     """RSL-RL configuration. Other PPO hyperparameters are the RSL-RL defaults."""
-    gaussian = {"class_name": "GaussianDistribution", "init_std": 1.0}
-    mlp = {"class_name": "MLPModel", "hidden_dims": [nv_mlp] * 4,
-           "activation": "relu", "obs_normalization": True}
-    if policy == "mlp":
-        actor = {**mlp, "distribution_cfg": gaussian}
-    else:
-        actor = {"class_name": "RNNModel", "rnn_type": "lstm", "rnn_hidden_dim": nv_lstm,
-                 "network_cfg": {"class_name": "torch.nn:Linear"},  # linear readout
-                 "obs_normalization": True, "distribution_cfg": gaussian}
+    actor = {"class_name": "RNNModel", "rnn_type": "lstm", "rnn_hidden_dim": nv_lstm,
+             "network_cfg": {"class_name": "torch.nn:Linear"},  # linear readout
+             "obs_normalization": True,
+             "distribution_cfg": {"class_name": "GaussianDistribution", "init_std": 1.0}}
+    critic = {"class_name": "MLPModel", "hidden_dims": [nv_mlp] * 4,
+              "activation": "relu", "obs_normalization": True}
     return {
         "num_steps_per_env": train_horizon,
         "obs_groups": {"actor": ["policy"], "critic": ["policy", "privileged"]},
-        "algorithm": {"class_name": "PPO", "gamma": gamma, "entropy_coef": entropy_coef},
+        "algorithm": {"class_name": "PPO", "gamma": gamma},
         "actor": actor,
-        "critic": mlp,
+        "critic": critic,
         "multi_gpu": None,
     }
 
@@ -66,37 +67,27 @@ def test_cost(alg, test, device):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--policy", choices=["mlp", "lstm"], required=True)
-    parser.add_argument("--gamma", type=float, default=0.99)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--entropy-coef", type=float, default=0.01)
     parser.add_argument("--epochs", type=int, default=6400)
-    parser.add_argument("--lr-decay", action="store_true",
-                        help="Cut the lr by 10x at 3/4 and again at 7/8 of training (as in APG)")
-    parser.add_argument("--log-every", type=int, default=5)
-    parser.add_argument("--save-every", type=int, default=100)
     parser.add_argument("--device", default="cuda")
-    parser.add_argument("--tag", default="", help="Optional sub-folder in results/")
     args = parser.parse_args()
 
-    savedir = RESULTS_DIR / args.tag
-    savedir.mkdir(parents=True, exist_ok=True)
-    save_name = f"ppo_{args.policy}_g{args.gamma:g}_ent{args.entropy_coef:g}_s{args.seed}"
+    RESULTS_DIR.mkdir(exist_ok=True)
+    save_name = f"ppo_lstm_s{args.seed}"
     print("Starting experiment", save_name, flush=True)
 
     torch.manual_seed(args.seed)
-    env = CartPoleEnv(train_batches, max_steps, args.gamma, seed=args.seed, device=args.device)
+    env = CartPoleEnv(train_batches, max_steps, gamma, seed=args.seed, device=args.device)
     obs = env.get_observations()
-    cfg = make_cfg(args.policy, args.gamma, args.entropy_coef)
-    alg = PPO.construct_algorithm(obs, env, cfg, args.device)
-    decay_epochs = [int(args.epochs * f) for f in (3/4, 7/8)] if args.lr_decay else []
+    alg = PPO.construct_algorithm(obs, env, make_cfg(), args.device)
+    decay_epochs = [int(args.epochs * f) for f in (3/4, 7/8)]
     test = load_test_set()
 
     # Save test costs as we go, and checkpoint the model (includes obs normalisers)
     def save(costs):
-        np.savetxt(savedir / f"{save_name}.csv", np.array(costs),
+        np.savetxt(RESULTS_DIR / f"{save_name}.csv", np.array(costs),
                    delimiter=",", header="epoch,test_cost,ep_len_mean", comments="")
-        torch.save(alg.save(), savedir / f"{save_name}_model.pt")
+        torch.save(alg.save(), RESULTS_DIR / f"{save_name}_model.pt")
 
     # Training loop (same as rsl_rl's OnPolicyRunner.learn, minus its logging),
     # logging the test cost every few epochs as in train_model!
@@ -105,7 +96,7 @@ def main():
     alg.train_mode()
     for epoch in range(args.epochs + 1):
 
-        if epoch % args.log_every == 0:
+        if epoch % log_every == 0:
             J = test_cost(alg, test, args.device)
             ep_len = np.mean(env.finished_lengths[-100:]) if env.finished_lengths else np.nan
             costs.append((epoch, J, ep_len))
@@ -114,12 +105,12 @@ def main():
                 print(f"Epoch {epoch} test cost: {J:.4g}, episode length: {ep_len:.0f}, "
                       f"action std: {std:.3g}, lr: {alg.learning_rate:.2g} "
                       f"({time.time() - t0:.0f} s)", flush=True)
-            if epoch % args.save_every == 0:
                 save(costs)
         if epoch == args.epochs:
             break
 
-        # Fix the lr at 10x below its current (adaptive) value, as in the APG runs
+        # Cut the lr by 10x at 3/4 and again at 7/8 of training, as in the APG runs
+        # (fixed from then on, starting from its current adaptive value)
         if epoch in decay_epochs:
             alg.schedule = "fixed"
             alg.learning_rate *= 0.1
