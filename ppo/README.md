@@ -66,7 +66,7 @@ All commands are run from this folder.
 
     Test costs (`results/ppo_lstm_s*.csv`), logs and model checkpoints are saved every 100 epochs. All six seeds take ~3 hours together on one RTX 50-series GPU (the GPU is the bottleneck, so running seeds in parallel is no faster than running them in sequence).
 
-3. Plot the training curves, as Fig. 13 with the PPO policies added (`results/lcp_vanilla_ppo_combined_training.pdf`), and a side-by-side version with APG and PPO in separate panels (`results/lcp_vanilla_ppo_side_by_side.pdf`):
+3. Plot the training curves for the paper: Fig. 13 split into two panels, analytic gradients (left) and PPO (right), with a shared y-axis and legend, at the original figure size (`results/lcp_vanilla_ppo_combined_training.pdf`).:
 
         julia --project=.. plot_ppo.jl
 

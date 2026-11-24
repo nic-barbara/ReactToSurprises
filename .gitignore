@@ -69,3 +69,4 @@ misc/*
 ppo/data/
 ppo/results/*_model.pt
 ppo/results/*.log
+ppo/.venv/

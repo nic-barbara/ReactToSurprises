@@ -3,9 +3,7 @@
 ## Goal
 
 Add black-box LSTM policies trained with PPO to Fig. 13
-(`lcp_vanilla_combined_training.pdf`), with the MLP removed. Also make a
-side-by-side version (APG left, PPO right, shared y-axis) for the response to
-reviewers.
+(`lcp_vanilla_combined_training.pdf`), with the MLP removed.
 
 ## Rules
 
@@ -104,12 +102,11 @@ RSL-RL PPO defaults (no learning-rate sweep, default entropy), except γ and the
 
 ## Plotting
 
-- `lcp_vanilla_ppo_combined_training.pdf`: single axes, same size and colours
-  as the original Fig. 13, MLP removed. Youla-γREN band, APG black-box LSTMs
-  ("Black-box LSTM", best seed highlighted as before), PPO black-box LSTMs
-  ("Black-box LSTM (PPO)", all 6 seeds, coral), base and LQG references.
-- `lcp_vanilla_ppo_side_by_side.pdf`: APG and PPO in separate panels with a
-  shared y-axis, no highlighted APG model.
+- `lcp_vanilla_ppo_combined_training.pdf` (paper): same size (412 × 240 pt) and
+  colours as the original Fig. 13, MLP removed. Two panels, "Analytic Gradients"
+  (left) and "PPO" (right), shared log y-axis, shared x-label and a two-row
+  boxed legend along the bottom. Black-box LSTMs in the same blue in both panels, best
+  APG seed highlighted as before. Youla-γREN band and base/LQG references in both.
 
 ## Folder layout
 
@@ -122,9 +119,9 @@ ppo/
   cartpole.py           torch cart-pole env (RSL-RL) + test-set evaluation
   train_ppo.py          trains one seed
   run_sweep.sh          runs all 6 seeds in parallel on the GPU
-  plot_ppo.jl           both figures
+  plot_ppo.jl           the figure
   data/                 exported test set
-  results/              PPO cost curves (CSV), logs, models, figures
+  results/              PPO cost curves (CSV), logs, models, figure
 ```
 
 ## Checklist
@@ -144,7 +141,7 @@ ppo/
 - [x] Seeds 3–5 of the final config: seed 5 good from ~980 to ~6000 then drifted up; seeds 3, 4 never learned
 - [x] Plot scripts written and tested on early checkpoints (APG panel matches published Fig. 13)
 - [x] Long test rollouts: not needed (PPO not better than APG). Code and results moved to `to_delete/`
-- [x] Final figures (single axes, MLP removed; plus side-by-side version)
+- [x] Final figures: paper version split into two panels with a bottom legend (same footprint)
 - [x] Unneeded files moved to `to_delete/` (rollout code/results, γ = 0.99 defaults runs, entropy-off runs, long test set)
 - [x] Clean up at the very end (after seeds 3–5 finish, since they use the current code): cut the code and saved results down to only the files needed to generate the data and figures for the final plots (e.g. drop unused MLP / rollout / sweep options and exploratory results), then update `ppo/README.md` to match
   - Done: LSTM-only code with the final config hard-coded; long test set and LQG validation removed from the export (validation kept as `to_delete/validate_lqg.py`, still matches Julia); results flattened into `results/ppo_lstm_s*.{csv,log}`; figures regenerated and unchanged; seed 0 retrained for 8 epochs and matched the saved run exactly
