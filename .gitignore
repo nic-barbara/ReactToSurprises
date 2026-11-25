@@ -61,4 +61,15 @@ codegen/
 # Octave session info
 octave-workspace
 
+# My additions
 .DS_Store
+*.cpython*
+
+misc/*
+
+ppo/.venv/
+ppo/data/
+ppo/results/*_model.pt
+ppo/results/*.log
+ppo/results/mlp_tuning/*
+!ppo/results/mlp_tuning/*.md

@@ -1,0 +1,18 @@
+[project]
+name = "ppo-cartpole"
+version = "0.1.0"
+description = "PPO baselines for the uncertain linear cart-pole (React to Surprises, Sec. VII.D)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numpy",
+    "torch",
+    "rsl-rl-lib==6.0.0",
+]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
