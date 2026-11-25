@@ -82,19 +82,22 @@ colour_b = colours[4]
 colour_o = colours[1]
 colour_vl = :dodgerblue
 colour_vm = :coral
+α_seeds = 0.35     # opacity of the individual black-box curves
 
 # Costs are logged every 5 epochs (except the first point)
 epochs(c) = vcat(1, 5:5:((length(c) - 1) * 5))
 
-function plot_loss!(ax, xc, μ, cmax, cmin; linewidth=2, kwargs...)
+# Drawn on top of all other lines (z = 1) so it is not hidden by the black-box curves
+function plot_loss!(ax, xc, μ, cmax, cmin; linewidth=3, kwargs...)
     colour = kwargs[:color]
-    band!(ax, xc, cmax, cmin, color=(colour, 0.3))
-    lines!(ax, xc, μ; linewidth, kwargs...)
+    b = band!(ax, xc, cmax, cmin, color=(colour, 0.4))
+    l = lines!(ax, xc, μ; linewidth, kwargs...)
+    translate!.((b, l), 0, 0, 1)
 end
 
 function plot_seeds!(ax, costs, colour, label)
     for (i, c) in enumerate(costs)
-        lines!(ax, epochs(c), c; linewidth=1.25, color=(colour, 0.5),
+        lines!(ax, epochs(c), c; linewidth=1.25, color=(colour, α_seeds),
                label=(i == 1 ? label : nothing))
     end
 end
@@ -186,9 +189,9 @@ with_theme(theme_latexfonts()) do
     end
 
     elements = [
-        LineElement(color=colour_yr, linewidth=2),
-        LineElement(color=(colour_vl, 0.5), linewidth=1.25),
-        LineElement(color=(colour_vm, 0.5), linewidth=1.25),
+        LineElement(color=colour_yr, linewidth=3),
+        LineElement(color=(colour_vl, α_seeds), linewidth=1.25),
+        LineElement(color=(colour_vm, α_seeds), linewidth=1.25),
         LineElement(color=colour_b, linestyle=:dash, linewidth=2),
         LineElement(color=colour_o, linestyle=:dash, linewidth=2),
     ]
