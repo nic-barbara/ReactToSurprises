@@ -72,7 +72,7 @@ costs_vm_ppo = load_ppo("mlp")
 
 #######################################################################
 #
-# Plot: Youla-REN and black-box LSTMs trained with APG and PPO
+# Plot: Youla-REN and black-box policies trained with APG and PPO
 #
 #######################################################################
 
@@ -95,10 +95,12 @@ function plot_loss!(ax, xc, μ, cmax, cmin; linewidth=3, kwargs...)
     translate!.((b, l), 0, 0, 1)
 end
 
-function plot_seeds!(ax, costs, colour, label)
+# z < 0 draws the curves underneath the others (without changing the legend order)
+function plot_seeds!(ax, costs, colour, label; z=0)
     for (i, c) in enumerate(costs)
-        lines!(ax, epochs(c), c; linewidth=1.25, color=(colour, α_seeds),
-               label=(i == 1 ? label : nothing))
+        l = lines!(ax, epochs(c), c; linewidth=1.25, color=(colour, α_seeds),
+                   label=(i == 1 ? label : nothing))
+        translate!(l, 0, 0, z)
     end
 end
 
@@ -116,88 +118,34 @@ function plot_refs!(ax, n)
     ylims!(ax, J_opt * 0.8, 1e35)
 end
 
-# Paper figure: same size as the original Fig. 13, APG (left) and PPO (right)
-# with a shared y-axis and a shared legend along the bottom.
-with_theme(theme_latexfonts()) do
+# Single panel in the style of the original Fig. 13: policies trained with APG
+# (blue) and PPO (coral), with the legend on the right. The APG policy `best`
+# is highlighted if given.
+function plot_apg_ppo(fname, apg, ppo, model; best=nothing)
+    with_theme(theme_latexfonts()) do
 
-    fig = Figure(size=(550, 320), fontsize=19)
-    ga = fig[1,1] = GridLayout()
+        fig = Figure(size=(550, 320), fontsize=19)
+        ax = Axis(fig[1,1], xlabel="Training epochs", ylabel="Time-averaged test cost",
+                  yscale=Makie.log10, xticks=WilkinsonTicks(3; k_min=3, k_max=4))
 
-    xticks = [0, 3000, 6000]
-    ax1 = Axis(ga[1,1], title="Analytic Gradients", titlefont=:regular,
-               ylabel="Time-averaged test cost", ylabelsize=15, yscale=Makie.log10, xticks=xticks)
-    ax2 = Axis(ga[1,2], title="PPO", titlefont=:regular,
-               yscale=Makie.log10, yticklabelsvisible=false, xticks=xticks)
-    Label(ga[2,1:2], text="Training epochs")
-    linkyaxes!(ax1, ax2)
-    colgap!(ga, 15)
-    rowgap!(ga, 5)
-
-    n = maximum(length, vcat(costs_vl_ppo, others_vl_apg, [best_vl_apg, μ_yr]))
-    for ax in (ax1, ax2)
+        n = maximum(length, vcat(apg, ppo, [μ_yr], isnothing(best) ? [] : [best]))
         plot_loss!(ax, epochs(μ_yr), μ_yr, max_yr, min_yr; color=colour_yr, label="Youla-γREN")
-    end
-    plot_seeds!(ax1, others_vl_apg, colour_vl, "Black-box LSTM")
-    lines!(ax1, epochs(best_vl_apg), best_vl_apg; linewidth=2, color=colour_vl)
-    plot_seeds!(ax2, costs_vl_ppo, colour_vl, nothing)
-    plot_refs!(ax1, n)
-    plot_refs!(ax2, n)
-
-    Legend(fig[2,1], ax1, orientation=:horizontal, nbanks=2)
-
-    resize_to_layout!(fig)
-    save(joinpath(@__DIR__, "results/lcp_vanilla_ppo_combined_training.pdf"), fig)
-end
-
-
-#######################################################################
-#
-# Response to reviewers: 2x2 grid of LSTM (top) and MLP (bottom) policies
-# trained with APG (left) and PPO (right). No highlighted models.
-#
-#######################################################################
-
-with_theme(theme_latexfonts()) do
-
-    fig = Figure(size=(800, 560), fontsize=19)
-    ga = fig[1,1] = GridLayout()
-
-    xticks = [0, 3000, 6000]
-    costs_vl_apg_all = [e.cost for e in costs_vl_apg]
-    panels = [(costs_vl_apg_all, colour_vl),
-              (costs_vl_ppo, colour_vl),
-              (costs_vm_apg, colour_vm),
-              (costs_vm_ppo, colour_vm)]
-    n = maximum(length, vcat(costs_vl_apg_all, costs_vl_ppo, costs_vm_apg, costs_vm_ppo, [μ_yr]))
-
-    axs = [Axis(ga[i,j], yscale=Makie.log10, xticks=xticks, titlefont=:regular,
-                title=(i == 1 ? ["Analytic Gradients", "PPO"][j] : ""),
-                xticklabelsvisible=(i == 2), yticklabelsvisible=(j == 1))
-           for i in 1:2, j in 1:2]
-    linkaxes!(axs...)
-    Label(ga[3,1:2], text="Training epochs")
-    Label(ga[1:2,0], text="Time-averaged test cost", rotation=π/2)
-    colgap!(ga, 1, 5)
-    colgap!(ga, 2, 15)
-    rowgap!(ga, 1, 15)
-    rowgap!(ga, 2, 5)
-
-    for (ax, (costs, colour)) in zip(permutedims(axs)[:], panels)
-        plot_loss!(ax, epochs(μ_yr), μ_yr, max_yr, min_yr; color=colour_yr, label="Youla-γREN")
-        plot_seeds!(ax, costs, colour, nothing)
+        plot_seeds!(ax, apg, colour_vl, "Black-box $model")
+        isnothing(best) || lines!(ax, epochs(best), best; linewidth=2, color=colour_vl)
+        plot_seeds!(ax, ppo, colour_vm, "Black-box $model\n(PPO)"; z=-1)
         plot_refs!(ax, n)
+
+        Legend(fig[1,2], ax, orientation=:vertical)
+
+        resize_to_layout!(fig)
+        save(joinpath(@__DIR__, "results", fname), fig)
     end
-
-    elements = [
-        LineElement(color=colour_yr, linewidth=3),
-        LineElement(color=(colour_vl, α_seeds), linewidth=1.25),
-        LineElement(color=(colour_vm, α_seeds), linewidth=1.25),
-        LineElement(color=colour_b, linestyle=:dash, linewidth=2),
-        LineElement(color=colour_o, linestyle=:dash, linewidth=2),
-    ]
-    labels = ["Youla-γREN", "Black-box LSTM", "Black-box MLP", "Base", L"LQG (known $m_p$)"]
-    Legend(fig[2,1], elements, labels, orientation=:horizontal, nbanks=2)
-
-    resize_to_layout!(fig)
-    save(joinpath(@__DIR__, "results/lcp_vanilla_ppo_response.pdf"), fig)
 end
+
+# Paper: LSTMs only, best APG LSTM highlighted as in the original Fig. 13
+plot_apg_ppo("lcp_vanilla_ppo_combined_training.pdf", others_vl_apg, costs_vl_ppo, "LSTM";
+             best=best_vl_apg)
+
+# Response to reviewers: one figure each for the LSTMs and MLPs, no highlighted models
+plot_apg_ppo("lcp_vanilla_ppo_response_lstm.pdf", [e.cost for e in costs_vl_apg], costs_vl_ppo, "LSTM")
+plot_apg_ppo("lcp_vanilla_ppo_response_mlp.pdf", costs_vm_apg, costs_vm_ppo, "MLP")

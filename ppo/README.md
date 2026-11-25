@@ -1,6 +1,6 @@
 # PPO Baselines for the Uncertain Cart-Pole
 
-This folder trains black-box LSTM and MLP policies with Proximal Policy Optimisation (PPO) on the uncertain linear cart-pole from Section VII.D of the paper, for comparison with the existing black-box policies trained with analytic policy gradients (APG). The PPO LSTMs are added to Figure 13 of the paper; both the LSTMs and MLPs are shown in a separate figure for the response to reviewers. Training is in Python; exporting the test set and plotting are in Julia.
+This folder trains black-box LSTM and MLP policies with Proximal Policy Optimisation (PPO) on the uncertain linear cart-pole from Section VII.D of the paper, for comparison with the existing black-box policies trained with analytic policy gradients (APG). The PPO LSTMs are added to Figure 13 of the paper; the LSTMs and MLPs are each shown in a separate figure for the response to reviewers. Training is in Python; exporting the test set and plotting are in Julia.
 
 ## Disclaimer on AI Usage
 
@@ -96,8 +96,7 @@ All commands are run from this folder.
     Test costs (`results/ppo_{lstm,mlp}_s*.csv`), logs and model checkpoints are saved every 100 epochs. The MLPs are small, so they run faster on the CPU (one thread each) than when many share the GPU.
 
 4. Plot the training curves:
-    - For the paper: Fig. 13 split into two panels, analytic gradients (left) and PPO (right), LSTMs only, with a shared y-axis and legend, at the original figure size (`results/lcp_vanilla_ppo_combined_training.pdf`).
-    - For the response to reviewers: a 2x2 grid of LSTMs (top) and MLPs (bottom) trained with analytic gradients (left) and PPO (right), with no highlighted models (`results/lcp_vanilla_ppo_response.pdf`).
+    All figures are in the style and size of the original Fig. 13, with policies trained by analytic gradients in blue and by PPO in coral.
 
     Run:
 

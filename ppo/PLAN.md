@@ -4,7 +4,7 @@
 
 Add black-box LSTM policies trained with PPO to Fig. 13
 (`lcp_vanilla_combined_training.pdf`), with the MLP removed. For the response
-to reviewers, also show black-box MLPs trained with PPO in a separate 2x2 figure.
+to reviewers, show the LSTMs and MLPs in two separate single-panel figures.
 
 ## Rules
 
@@ -118,16 +118,17 @@ RSL-RL PPO defaults (no learning-rate sweep, default entropy), except γ and the
 
 ## Plotting
 
-- `lcp_vanilla_ppo_combined_training.pdf` (paper): same size (412 × 240 pt) and
-  colours as the original Fig. 13, MLP removed. Two panels, "Analytic Gradients"
-  (left) and "PPO" (right), shared log y-axis, shared x-label and a two-row
-  boxed legend along the bottom. Black-box LSTMs in the same blue in both panels, best
-  APG seed highlighted as before. Youla-γREN band and base/LQG references in both.
-- `lcp_vanilla_ppo_response.pdf` (response to reviewers, 600 × 420 pt): 2x2
-  grid, LSTM (top, blue) and MLP (bottom, coral, APG lr 1e-2 as in the original
-  Fig. 13) by analytic gradients (left) and PPO (right). All seeds, no
-  highlighted models, same 1e35 y-cap as the paper figure (the APG MLPs spike
-  to ~1e70, so fitting all the data hides everything else).
+All figures: single panel in the style and size of the original Fig. 13
+(412 × 240 pt, legend on the right), APG policies in blue and PPO in coral
+(legend "Black-box LSTM" / "Black-box LSTM (PPO)"), Youla-γREN band and base/LQG
+references, same 1e35 y-cap (the APG MLPs spike to ~1e70). Replaced the earlier
+two-panel and 2x2 versions.
+
+- `lcp_vanilla_ppo_combined_training.pdf` (paper): LSTMs only, best APG seed
+  highlighted as before.
+- `lcp_vanilla_ppo_response_{lstm,mlp}.pdf` (response to reviewers): one figure
+  each for the LSTMs and MLPs (MLP: APG lr 1e-2 as in the original Fig. 13), all
+  seeds, no highlighted models.
 
 ## Folder layout
 
@@ -172,6 +173,8 @@ ppo/
 - [x] MLP option reinstated in `train_ppo.py` / `run_sweep.sh` (LSTM path unchanged; seed 0 still reproduces exactly)
 - [x] PPO-MLP × 6 seeds with the LSTM settings (untuned): stopped at epoch ~4000, none below their untrained cost, exploration std grew 1 → ~7. Moved to `to_delete/mlp_untuned/`
 - [x] Response figure (2x2) written and tested on partial MLP data
+- [x] Response figure split into two copies of the paper figure (LSTM, MLP), no highlighting; paper figure unchanged (pixel-identical)
+- [x] All figures (paper and response) changed to single panels in the original Fig. 13 style: APG (blue) vs PPO (coral); paper figure keeps the highlighted APG LSTM and its 412 × 240 pt size
 - [x] Decision (user, 21:30): tune PPO for the MLP overnight, done by 7–9am. LSTM not re-tuned
 - [x] `train_ppo.py`: added `--gamma`, `--entropy-coef`, `--lr` (fixed), `--no-lr-decay`, `--log-every`, `--outdir` (defaults unchanged; LSTM seed 0 still reproduces exactly)
 - [x] Benchmark with all 32 threads busy: ~3.0 s/epoch per run on P-core threads, ~4.0 on E-cores, ~1.2 on GPU (~10.5 epochs/s total, ~2x the 6 × 4-thread setup)
