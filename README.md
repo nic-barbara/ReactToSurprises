@@ -123,7 +123,7 @@ The black-box MLP and LSTM policies in Figure 13 were trained for 4× longer tha
 
 All other settings (training horizon, batch size, noise, etc.) match those in Table 1, Section VII.D. Corresponding training scripts are in `src/model-uncertainty/test-vanilla/`.
 
-For all information on the LSTM variants trained with recurrent PPO, see the `ppo/` directory in this repository.
+For all information on the MLP and LSTM variants trained with PPO, see the `ppo/` directory in this repository.
 
 ## Contact
 

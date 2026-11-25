@@ -102,12 +102,19 @@ RSL-RL PPO defaults (no learning-rate sweep, default entropy), except γ and the
    collapsed as its exploration std grew (3 → 22), seed 5 held ~21–27 through
    the lr cuts and then drifted up from epoch ~6000 (to ~1e9 at 6400). Seeds
    0, 3 and 4 never stabilised the system. See the README for the table.
-9. **PPO-MLP for the response to reviewers:** six seeds with the final LSTM
+9. **PPO-MLP for the response to reviewers (untuned, superseded by 10):** six seeds with the final LSTM
    settings, `--policy mlp`. Run on the CPU (`--device cpu`, 4 threads each):
    ~1 s/epoch vs ~2 s/epoch with six runs sharing the GPU, since the networks
    are tiny and GPU time-sharing dominates. At epoch ~1000, no seed had gone
    below its untrained test cost and training episodes stayed at ~36–270 of
    800 steps.
+10. **PPO-MLP tuning (overnight):** the untuned MLPs did worse than untrained
+   (the entropy bonus kept raising the exploration noise), so the comparison
+   would invite "you didn't tune it". Two-stage sweep over the PPO settings
+   most related to that failure (discount factor, entropy bonus, learning
+   rate), mirroring how the APG learning rate was chosen: screen short, then
+   full-length runs with 6 seeds for the top 3, pick the best by a score fixed
+   in advance. Policy architecture, environment and test set unchanged.
 
 ## Plotting
 
@@ -133,9 +140,11 @@ ppo/
   cartpole.py           torch cart-pole env (RSL-RL) + test-set evaluation
   train_ppo.py          trains one (policy, seed) run
   run_sweep.sh          runs 6 seeds of one policy in parallel
+  tune_mlp.py           two-stage PPO tuning for the MLPs (overnight)
   plot_ppo.jl           paper and response figures
   data/                 exported test set
   results/              PPO cost curves (CSV), logs, models, figures
+  results/mlp_tuning/   all MLP tuning runs (CSV, logs), summary.md, tune.log
 ```
 
 ## Checklist
@@ -161,6 +170,16 @@ ppo/
   - Done: LSTM-only code with the final config hard-coded; long test set and LQG validation removed from the export (validation kept as `to_delete/validate_lqg.py`, still matches Julia); results flattened into `results/ppo_lstm_s*.{csv,log}`; figures regenerated and unchanged; seed 0 retrained for 8 epochs and matched the saved run exactly
 - [x] User to review, then delete `to_delete/`
 - [x] MLP option reinstated in `train_ppo.py` / `run_sweep.sh` (LSTM path unchanged; seed 0 still reproduces exactly)
-- [ ] PPO-MLP × 6 seeds on CPU (started 20:14, ETA ~22:05)
+- [x] PPO-MLP × 6 seeds with the LSTM settings (untuned): stopped at epoch ~4000, none below their untrained cost, exploration std grew 1 → ~7. Moved to `to_delete/mlp_untuned/`
 - [x] Response figure (2x2) written and tested on partial MLP data
-- [ ] Regenerate figures and add the MLP results to the README when the runs finish
+- [x] Decision (user, 21:30): tune PPO for the MLP overnight, done by 7–9am. LSTM not re-tuned
+- [x] `train_ppo.py`: added `--gamma`, `--entropy-coef`, `--lr` (fixed), `--no-lr-decay`, `--log-every`, `--outdir` (defaults unchanged; LSTM seed 0 still reproduces exactly)
+- [x] Benchmark with all 32 threads busy: ~3.0 s/epoch per run on P-core threads, ~4.0 on E-cores, ~1.2 on GPU (~10.5 epochs/s total, ~2x the 6 × 4-thread setup)
+- [x] `tune_mlp.py` dry-run tested (scheduling, scoring, restart)
+- [x] Stage 1 (21:59–23:36): 18 settings (γ 0.99/0.999 × entropy 0.01/0.001/0 × lr adaptive/3e-4/1e-4) × 2 seeds × 1600 epochs, no lr cut, test every 25 epochs. Score = mean log10 test cost over the last 25% (NaN = 1e308), averaged over seeds. Top 3 → stage 2
+- [x] Stage 2 (23:36–02:59): top 3 × 6 seeds × 6400 epochs, full setup (lr cut, test every 5). Best (same score, last 500 epochs) → `results/ppo_mlp_s*`, figures re-plotted automatically. Summary in `results/mlp_tuning/summary.md`
+  - Stage 1 top 3: γ 0.99 with (entropy 0.01, adaptive lr) = RSL-RL defaults, (entropy 0, fixed 1e-4), (entropy 0, fixed 3e-4). γ 0.99 beat 0.999 for every entropy/lr combination
+  - Stage 2 best: γ 0.99, entropy 0.01, adaptive lr (score 26.7 vs 28.4, 29.1). No MLP in any of the 54 runs got below a test cost of 2e20 (base 405). Training episodes reached ~600–730 of 800 steps for 4 of 6 seeds
+  - Overnight speed-ups (no effect on results): runs on CPU with 1 thread each plus 3 on the GPU; mid-stage-2, slowest runs pinned to separate P-cores (3.6 → 1.2–1.5 s/epoch) and E-core runs moved to P-cores as they freed up
+- [x] README updated (MLP tuning method, results table, run instructions)
+- [ ] Clean up: tuning model checkpoints (120 MB, not needed for figures) moved to `to_delete/mlp_tuning_models/`; user to confirm

@@ -25,14 +25,13 @@ train_horizon = 200
 max_steps = 800
 nv_lstm = 154
 nv_mlp = 177
-log_every = 5
-
-# Changed from the RSL-RL defaults
-gamma = 0.999
 
 
-def make_cfg(policy):
-    """RSL-RL configuration. Other PPO hyperparameters are the RSL-RL defaults."""
+def make_cfg(policy, gamma, entropy_coef, lr):
+    """
+    RSL-RL configuration. Other PPO hyperparameters are the RSL-RL defaults.
+    If `lr` is None, the learning rate is adaptive (RSL-RL default), otherwise fixed.
+    """
     gaussian = {"class_name": "GaussianDistribution", "init_std": 1.0}
     critic = {"class_name": "MLPModel", "hidden_dims": [nv_mlp] * 4,
               "activation": "relu", "obs_normalization": True}
@@ -42,10 +41,13 @@ def make_cfg(policy):
         actor = {"class_name": "RNNModel", "rnn_type": "lstm", "rnn_hidden_dim": nv_lstm,
                  "network_cfg": {"class_name": "torch.nn:Linear"},  # linear readout
                  "obs_normalization": True, "distribution_cfg": gaussian}
+    algorithm = {"class_name": "PPO", "gamma": gamma, "entropy_coef": entropy_coef}
+    if lr is not None:
+        algorithm.update(learning_rate=lr, schedule="fixed")
     return {
         "num_steps_per_env": train_horizon,
         "obs_groups": {"actor": ["policy"], "critic": ["policy", "privileged"]},
-        "algorithm": {"class_name": "PPO", "gamma": gamma},
+        "algorithm": algorithm,
         "actor": actor,
         "critic": critic,
         "multi_gpu": None,
@@ -74,24 +76,34 @@ def main():
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--epochs", type=int, default=6400)
     parser.add_argument("--device", default="cuda")
+    # PPO settings (defaults are those used for the LSTMs)
+    parser.add_argument("--gamma", type=float, default=0.999)
+    parser.add_argument("--entropy-coef", type=float, default=0.01)
+    parser.add_argument("--lr", type=float, default=None, help="Fixed lr (default: adaptive)")
+    parser.add_argument("--no-lr-decay", action="store_true",
+                        help="Skip the 10x lr cuts at 3/4 and 7/8 of training")
+    parser.add_argument("--log-every", type=int, default=5)
+    parser.add_argument("--outdir", default="", help="Sub-folder of results/")
     args = parser.parse_args()
 
-    RESULTS_DIR.mkdir(exist_ok=True)
+    savedir = RESULTS_DIR / args.outdir
+    savedir.mkdir(parents=True, exist_ok=True)
     save_name = f"ppo_{args.policy}_s{args.seed}"
     print("Starting experiment", save_name, flush=True)
 
     torch.manual_seed(args.seed)
-    env = CartPoleEnv(train_batches, max_steps, gamma, seed=args.seed, device=args.device)
+    env = CartPoleEnv(train_batches, max_steps, args.gamma, seed=args.seed, device=args.device)
     obs = env.get_observations()
-    alg = PPO.construct_algorithm(obs, env, make_cfg(args.policy), args.device)
-    decay_epochs = [int(args.epochs * f) for f in (3/4, 7/8)]
+    cfg = make_cfg(args.policy, args.gamma, args.entropy_coef, args.lr)
+    alg = PPO.construct_algorithm(obs, env, cfg, args.device)
+    decay_epochs = [] if args.no_lr_decay else [int(args.epochs * f) for f in (3/4, 7/8)]
     test = load_test_set()
 
     # Save test costs as we go, and checkpoint the model (includes obs normalisers)
     def save(costs):
-        np.savetxt(RESULTS_DIR / f"{save_name}.csv", np.array(costs),
+        np.savetxt(savedir / f"{save_name}.csv", np.array(costs),
                    delimiter=",", header="epoch,test_cost,ep_len_mean", comments="")
-        torch.save(alg.save(), RESULTS_DIR / f"{save_name}_model.pt")
+        torch.save(alg.save(), savedir / f"{save_name}_model.pt")
 
     # Training loop (same as rsl_rl's OnPolicyRunner.learn, minus its logging),
     # logging the test cost every few epochs as in train_model!
@@ -100,11 +112,11 @@ def main():
     alg.train_mode()
     for epoch in range(args.epochs + 1):
 
-        if epoch % log_every == 0:
+        if epoch % args.log_every == 0:
             J = test_cost(alg, test, args.device)
             ep_len = np.mean(env.finished_lengths[-100:]) if env.finished_lengths else np.nan
             costs.append((epoch, J, ep_len))
-            if epoch % 100 == 0:
+            if epoch % 100 == 0:  # log_every must divide 100
                 std = alg.actor.distribution.std_param.mean().item()
                 print(f"Epoch {epoch} test cost: {J:.4g}, episode length: {ep_len:.0f}, "
                       f"action std: {std:.3g}, lr: {alg.learning_rate:.2g} "
@@ -114,7 +126,7 @@ def main():
             break
 
         # Cut the lr by 10x at 3/4 and again at 7/8 of training, as in the APG runs
-        # (fixed from then on, starting from its current adaptive value)
+        # (fixed from then on, starting from its current value)
         if epoch in decay_epochs:
             alg.schedule = "fixed"
             alg.learning_rate *= 0.1

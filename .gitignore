@@ -66,7 +66,10 @@ octave-workspace
 *.cpython*
 
 misc/*
+
+ppo/.venv/
 ppo/data/
 ppo/results/*_model.pt
 ppo/results/*.log
-ppo/.venv/
+ppo/results/mlp_tuning/*
+!ppo/results/mlp_tuning/*.md

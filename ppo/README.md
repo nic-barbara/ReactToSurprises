@@ -18,9 +18,15 @@ PPO is the recurrent PPO implementation from [RSL-RL](https://github.com/leggedr
 - Test cost: logged every 5 epochs on the identical test set (exported from Julia), with deterministic actions, 1600 time steps, and no early termination.
 - 6400 training epochs and 6 random seeds, with the learning rate reduced 10x at 3/4 and again at 7/8 of training.
 
-**Changed from RSL-RL defaults:**
-- Discount factor tuned to γ = 0.999 (default 0.99), so the effective horizon (~1/(1-γ) steps) covers the 800-step training episode. With γ = 0.99, PPO only looks ~100 steps ahead and the policies did not stabilise over the test horizon.
+**Changed from RSL-RL defaults for the LSTMs:**
+- Discount factor set to γ = 0.999 (default 0.99), so the effective horizon (~1/(1-γ) steps) covers the 800-step training episode. With γ = 0.99, PPO only looks ~100 steps ahead and the policies did not stabilise over the test horizon.
 - Learning rate fixed at 10x below its (adaptive) value at 3/4 of training, and 10x lower again at 7/8, as in the APG experiments, to check whether reducing the learning rate can improve convergence. In the end, it did not help: only one policy (seed 5) was near a good cost when the learning rate was reduced. It stayed there until epoch ~6000, then its test cost drifted up to ~1e9 by the end of training anyway, and we could not save it.
+
+**Tuned for the MLPs** (`tune_mlp.py`): the LSTM settings above did worse than an untrained MLP (the entropy bonus kept increasing the exploration noise), so we tuned PPO for the MLPs separately, in the same way as the APG learning rate was chosen:
+1. Screening: 18 settings (γ ∈ {0.99, 0.999} × entropy coefficient ∈ {0.01, 0.001, 0} × learning rate ∈ {adaptive, fixed 3e-4, fixed 1e-4}), 2 seeds each, 1600 epochs, no learning-rate cut, test cost every 25 epochs.
+2. Full runs: the top 3 settings, 6 seeds each, with the full setup above (6400 epochs, learning-rate cut, test cost every 5 epochs).
+
+Settings were ranked by the mean (over seeds) of the mean log10 test cost over the last 25% of epochs (stage 1) or the last 500 epochs (stage 2), with NaN counted as 1e308. The rule was fixed before the runs. The best setting was the RSL-RL defaults with γ = 0.99 (entropy coefficient 0.01, adaptive learning rate), with the learning-rate cut. All scores are in [`results/mlp_tuning/summary.md`](results/mlp_tuning/summary.md).
 
 **Standard PPO practice needed for this problem** (training only; the policy architecture and test evaluation are unchanged):
 - Observation normalisation (running mean/std) for the policy and critic, and reward scaling by the running std of the discounted return.
@@ -44,7 +50,18 @@ See [PLAN.md](PLAN.md) for the history behind each choice.
 
 Three of the six seeds found policies with test costs comparable to the Youla-γREN, but none kept them until the end of training. The other three never stabilised the system over the test horizon.
 
-**MLP:** same settings as the LSTMs (no separate tuning). Runs in progress; results to be added when they finish.
+**MLP** (best tuned setting):
+
+| Seed | Best test cost | Epochs below base cost (405) | Final test cost (median, last 500 epochs) |
+|---|---|---|---|
+| 0 | 3e20 | never | 4e22 |
+| 1 | 7e20 | never | 6e28 |
+| 2 | 9e20 | never | 1e28 |
+| 3 | 3e25 | never | 7e26 |
+| 4 | 2e20 | never | 2e23 |
+| 5 | 5e21 | never | 8e30 |
+
+None of the MLPs stabilised the system. Across all 54 tuning runs, the lowest test cost at any point was 2e20. Training episodes got longer (up to ~730 of 800 steps), but the 1600-step test cost stayed above 1e20. This is similar to or worse than the MLPs trained with APG, most of which settled near 1e20 (one near 1e6).
 
 ## Installation
 
@@ -64,14 +81,21 @@ All commands are run from this folder.
 
         julia --project=.. export_test_set.jl
 
-2. Train the PPO policies (six seeds of one policy type, in parallel). The LSTMs were trained on the GPU and the MLPs on the CPU:
+2. Train the PPO LSTM policies (six seeds in parallel on the GPU, ~3 hours on one RTX 50-series GPU):
 
         ./run_sweep.sh lstm
-        OMP_NUM_THREADS=4 ./run_sweep.sh mlp --device cpu
 
-    Test costs (`results/ppo_{lstm,mlp}_s*.csv`), logs and model checkpoints are saved every 100 epochs. The six LSTM seeds take ~3 hours together on one RTX 50-series GPU (the GPU is the bottleneck, so running seeds in parallel is no faster than running them in sequence). The six MLP seeds take ~2 hours together on a 32-core CPU, which is ~2.5x faster than sharing the GPU, since the networks are small.
+3. Tune and train the PPO MLP policies (~5 hours on a 32-thread CPU plus the GPU). This runs both tuning stages, copies the best setting's runs to `results/ppo_mlp_s*`, and re-plots the figures:
 
-3. Plot the training curves:
+        nohup uv run python tune_mlp.py > results/mlp_tuning/tune.out 2>&1 &
+
+    To train only the final MLP setting (six seeds, ~2 hours on the CPU):
+
+        OMP_NUM_THREADS=4 ./run_sweep.sh mlp --gamma 0.99 --device cpu
+
+    Test costs (`results/ppo_{lstm,mlp}_s*.csv`), logs and model checkpoints are saved every 100 epochs. The MLPs are small, so they run faster on the CPU (one thread each) than when many share the GPU.
+
+4. Plot the training curves:
     - For the paper: Fig. 13 split into two panels, analytic gradients (left) and PPO (right), LSTMs only, with a shared y-axis and legend, at the original figure size (`results/lcp_vanilla_ppo_combined_training.pdf`).
     - For the response to reviewers: a 2x2 grid of LSTMs (top) and MLPs (bottom) trained with analytic gradients (left) and PPO (right), with no highlighted models (`results/lcp_vanilla_ppo_response.pdf`).
 
